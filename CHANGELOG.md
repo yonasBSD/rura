@@ -1,3 +1,9 @@
+## v1.1.1 - 2026-05-19
+
+### Bug Fixes
+
+- Reset both vertical and horizontal offsets when the output length changes
+
 ## v1.1.0 - 2026-05-17
 
 ### Features
