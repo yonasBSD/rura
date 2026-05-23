@@ -187,6 +187,8 @@ impl App {
                 let mods = key_event.modifiers;
                 let key_bindings = &self.key_bindings;
 
+                let ui_cmd_opt = to_ui_command(key_bindings, code, mods);
+
                 match &self.active_mode {
                     ActiveMode::Normal => match (code, mods) {
                         (Esc, KeyModifiers::NONE) => {
@@ -219,7 +221,7 @@ impl App {
                                 self.input_mode = InputMode::LiveFull;
                             }
                         },
-                        _ => match to_ui_command(key_bindings, code, mods) {
+                        _ => match ui_cmd_opt {
                             Some(ui_cmd) => match ui_cmd {
                                 UiCmd::Quit => {
                                     self.exit = true;
@@ -338,7 +340,7 @@ impl App {
                             self.search_widget
                                 .update_highlight_info(self.output_widget.highlight_info());
                         }
-                        _ => match to_ui_command(key_bindings, code, mods) {
+                        _ => match ui_cmd_opt {
                             Some(ui_cmd) => match ui_cmd {
                                 UiCmd::Quit => {
                                     self.exit = true;
@@ -398,7 +400,7 @@ impl App {
                             self.input_mode = input_mode.clone();
                             self.active_mode = ActiveMode::default();
                         }
-                        _ => match to_ui_command(key_bindings, code, mods) {
+                        _ => match ui_cmd_opt {
                             Some(UiCmd::Quit) => {
                                 self.exit = true;
                             }
@@ -413,7 +415,7 @@ impl App {
                         (F(1), KeyModifiers::NONE) => {
                             self.active_mode = ActiveMode::default();
                         }
-                        _ => match to_ui_command(key_bindings, code, mods) {
+                        _ => match ui_cmd_opt {
                             Some(UiCmd::Quit) => {
                                 self.exit = true;
                             }
