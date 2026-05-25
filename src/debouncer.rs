@@ -1,24 +1,37 @@
 use anyhow::Result;
-use log::{debug, error};
+use log::error;
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::thread::sleep;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 pub fn debouncer_task<F>(rx: Receiver<()>, duration: Duration, on_debounce: F) -> Result<()>
 where
     F: Fn() -> () + Send + 'static,
 {
     'outer: loop {
-        sleep(duration);
+        if let Err(e) = rx.recv() {
+            error!("Disconnected: {}", e);
+            break 'outer Ok(());
+        };
 
-        let mut last: Option<()> = None;
+        let now = SystemTime::now();
 
-        // Receive as much as possible within outer loop cycle
         'debouncing: loop {
-            match rx.try_recv() {
-                Ok(request) => last = Some(request),
+            sleep(Duration::from_millis(10));
+            let elapsed = now.elapsed()?;
 
-                Err(TryRecvError::Empty) => break 'debouncing,
+            match rx.try_recv() {
+                Ok(_) => {
+                    if elapsed > duration {
+                        break;
+                    }
+                }
+
+                Err(TryRecvError::Empty) => {
+                    if elapsed > duration {
+                        break 'debouncing;
+                    }
+                }
 
                 Err(TryRecvError::Disconnected) => {
                     error!("Disconnected");
@@ -27,9 +40,6 @@ where
             }
         }
 
-        if last.is_some() {
-            debug!("Debounced");
-            on_debounce();
-        }
+        on_debounce();
     }
 }
