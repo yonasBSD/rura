@@ -51,6 +51,7 @@ pub struct App {
     input_mode: InputMode,
     debouncer_tx: Sender<()>,
     active_mode: ActiveMode,
+    active_modal: ActiveModal,
     save_output_widget: SaveToFileWidget,
     save_command_widget: SaveToFileWidget,
 }
@@ -132,6 +133,7 @@ impl App {
             kb_config,
             input_mode: InputMode::Normal,
             active_mode: ActiveMode::default(),
+            active_modal: ActiveModal::default(),
         }
     }
 
@@ -188,15 +190,17 @@ impl App {
                 let code = key_event.code;
                 let mods = key_event.modifiers;
 
-                match &self.active_mode {
-                    ActiveMode::Normal => self.handle_event_normal(event, code, mods),
-                    ActiveMode::Search => self.handle_event_search(event, code, mods),
-                    ActiveMode::Help => self.handle_event_help(code, mods),
-                    ActiveMode::SaveOutput => self.handle_event_save_output(event, code, mods),
-                    ActiveMode::SaveCommand => self.handle_event_save_command(event, code, mods),
-                    ActiveMode::LiveConfirmation(input_mode) => {
+                match &self.active_modal {
+                    ActiveModal::None => match &self.active_mode {
+                        ActiveMode::Normal => self.handle_event_normal(event, code, mods),
+                        ActiveMode::Search => self.handle_event_search(event, code, mods),
+                    },
+                    ActiveModal::LiveConfirmation(input_mode) => {
                         self.handle_event_live_confirmation(code, mods, input_mode.clone())
                     }
+                    ActiveModal::Help => self.handle_event_help(code, mods),
+                    ActiveModal::SaveOutput => self.handle_event_save_output(event, code, mods),
+                    ActiveModal::SaveCommand => self.handle_event_save_command(event, code, mods),
                 }
             }
             _ => {}
@@ -206,7 +210,7 @@ impl App {
     fn handle_event_save_command(&mut self, event: &Event, code: KeyCode, mods: KeyModifiers) {
         match (code, mods) {
             (Esc, KeyModifiers::NONE) => {
-                self.active_mode = ActiveMode::default();
+                self.active_modal = ActiveModal::default();
             }
             (Enter, KeyModifiers::NONE) => match self.save_command_to_file() {
                 Ok(()) => {
@@ -214,7 +218,7 @@ impl App {
                         "Output saved to file: {}",
                         self.save_command_widget.file_path_input.value()
                     );
-                    self.active_mode = ActiveMode::default();
+                    self.active_modal = ActiveModal::default();
                 }
                 Err(e) => {
                     self.save_command_widget.error_message = Some(e.to_string());
@@ -241,7 +245,7 @@ impl App {
     fn handle_event_save_output(&mut self, event: &Event, code: KeyCode, mods: KeyModifiers) {
         match (code, mods) {
             (Esc, KeyModifiers::NONE) => {
-                self.active_mode = ActiveMode::default();
+                self.active_modal = ActiveModal::default();
             }
             (Enter, KeyModifiers::NONE) => match self.save_output_to_file() {
                 Ok(()) => {
@@ -249,7 +253,7 @@ impl App {
                         "Output saved to file: {}",
                         self.save_output_widget.file_path_input.value()
                     );
-                    self.active_mode = ActiveMode::default();
+                    self.active_modal = ActiveModal::default();
                 }
                 Err(e) => {
                     self.save_output_widget.error_message = Some(e.to_string());
@@ -276,10 +280,10 @@ impl App {
     fn handle_event_help(&mut self, code: KeyCode, mods: KeyModifiers) {
         match (code, mods) {
             (Esc, KeyModifiers::NONE) => {
-                self.active_mode = ActiveMode::default();
+                self.active_modal = ActiveModal::default();
             }
             (F(1), KeyModifiers::NONE) => {
-                self.active_mode = ActiveMode::default();
+                self.active_modal = ActiveModal::default();
             }
             _ => match to_ui_command(&self.key_bindings, code, mods) {
                 Some(UiCmd::Quit) => {
@@ -297,10 +301,10 @@ impl App {
         input_mode: InputMode,
     ) {
         match (code, mods) {
-            (Esc | Char('n'), KeyModifiers::NONE) => self.active_mode = ActiveMode::default(),
+            (Esc | Char('n'), KeyModifiers::NONE) => self.active_modal = ActiveModal::default(),
             (Char('y'), KeyModifiers::NONE) => {
                 self.input_mode = input_mode.clone();
-                self.active_mode = ActiveMode::default();
+                self.active_modal = ActiveModal::default();
             }
             _ => match to_ui_command(&self.key_bindings, code, mods) {
                 Some(UiCmd::Quit) => {
@@ -315,6 +319,9 @@ impl App {
         match (code, mods) {
             (Esc, KeyModifiers::NONE) => {
                 self.active_mode = ActiveMode::Normal;
+            }
+            (F(1), KeyModifiers::NONE) => {
+                self.active_modal = ActiveModal::Help;
             }
             (Char('c'), KeyModifiers::ALT) => {
                 self.search_widget.toggle_case_sensitive();
@@ -382,10 +389,10 @@ impl App {
                         self.output_widget.toggle_wrap();
                     }
                     UiCmd::SaveOutput => {
-                        self.active_mode = ActiveMode::SaveOutput;
+                        self.active_modal = ActiveModal::SaveOutput;
                     }
                     UiCmd::SaveCommand => {
-                        self.active_mode = ActiveMode::SaveCommand;
+                        self.active_modal = ActiveModal::SaveCommand;
                     }
                     _ => {}
                 },
@@ -410,11 +417,11 @@ impl App {
                 self.output_widget.clear_highlight();
             }
             (F(1), KeyModifiers::NONE) => {
-                self.active_mode = ActiveMode::Help;
+                self.active_modal = ActiveModal::Help;
             }
             (F(11), KeyModifiers::NONE) => match self.input_mode {
                 InputMode::Normal => {
-                    self.active_mode = ActiveMode::LiveConfirmation(InputMode::LiveUntilCursor);
+                    self.active_modal = ActiveModal::LiveConfirmation(InputMode::LiveUntilCursor);
                 }
                 InputMode::LiveFull => {
                     self.input_mode = InputMode::LiveUntilCursor;
@@ -425,7 +432,7 @@ impl App {
             },
             (F(12), KeyModifiers::NONE) => match self.input_mode {
                 InputMode::Normal => {
-                    self.active_mode = ActiveMode::LiveConfirmation(InputMode::LiveFull);
+                    self.active_modal = ActiveModal::LiveConfirmation(InputMode::LiveFull);
                 }
                 InputMode::LiveFull => {
                     self.input_mode = InputMode::Normal;
@@ -503,10 +510,10 @@ impl App {
                         self.output_widget.toggle_wrap();
                     }
                     UiCmd::SaveOutput => {
-                        self.active_mode = ActiveMode::SaveOutput;
+                        self.active_modal = ActiveModal::SaveOutput;
                     }
                     UiCmd::SaveCommand => {
-                        self.active_mode = ActiveMode::SaveCommand;
+                        self.active_modal = ActiveModal::SaveCommand;
                     }
                 },
                 _ => {
@@ -622,8 +629,6 @@ impl App {
                     search_input_area.y + 1 + y,
                 ));
             }
-            ActiveMode::SaveOutput => {}
-            _ => {}
         }
 
         frame.render_widget(&mut self.output_widget, output_area);
@@ -667,19 +672,19 @@ impl App {
             lines_area,
         );
 
-        match self.active_mode {
-            ActiveMode::LiveConfirmation(_) => {
+        match self.active_modal {
+            ActiveModal::LiveConfirmation(_) => {
                 self.render_live_confirm(frame);
             }
-            ActiveMode::Help => {
+            ActiveModal::Help => {
                 self.render_help(frame);
             }
-            ActiveMode::SaveOutput => {
+            ActiveModal::SaveOutput => {
                 self.save_output_widget
                     .render(frame.area(), frame.buffer_mut());
                 frame.set_cursor_position(self.save_output_widget.cursor)
             }
-            ActiveMode::SaveCommand => {
+            ActiveModal::SaveCommand => {
                 self.save_command_widget
                     .render(frame.area(), frame.buffer_mut());
                 frame.set_cursor_position(self.save_command_widget.cursor)
@@ -943,6 +948,7 @@ mod tests {
                 kb_config,
                 input_mode: InputMode::Normal,
                 active_mode: ActiveMode::default(),
+                active_modal: ActiveModal::default(),
             }
         }
     }
@@ -1098,6 +1104,12 @@ enum ActiveMode {
     #[default]
     Normal,
     Search,
+}
+
+#[derive(Default)]
+enum ActiveModal {
+    #[default]
+    None,
     LiveConfirmation(InputMode),
     Help,
     SaveOutput,
