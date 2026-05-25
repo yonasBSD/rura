@@ -25,11 +25,13 @@ impl SaveToFileWidget {
         }
     }
 
-    pub fn save(&self, content: &str) -> anyhow::Result<()> {
+    pub fn save(&mut self, content: &str) -> anyhow::Result<()> {
         let path = PathBuf::from(self.file_path_input.value().trim());
         let mut file = OpenOptions::new().create_new(true).write(true).open(path)?;
 
         write!(file, "{}", content)?;
+
+        self.error_message = None;
 
         Ok(())
     }

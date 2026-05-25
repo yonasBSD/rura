@@ -530,12 +530,12 @@ impl App {
         }
     }
 
-    fn save_output_to_file(&self) -> Result<()> {
+    fn save_output_to_file(&mut self) -> Result<()> {
         self.save_output_widget
             .save(&self.output_widget.output.lines.join("\n"))
     }
 
-    fn save_command_to_file(&self) -> Result<()> {
+    fn save_command_to_file(&mut self) -> Result<()> {
         self.save_command_widget.save(&format!(
             "#!/usr/bin/env sh\n\n{}",
             self.rura_widget.command_input.value()
