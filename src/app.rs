@@ -821,14 +821,14 @@ fn handle_input_task(tx: Sender<Action>) -> Result<()> {
 }
 
 fn read_stdin_task(action_tx: Sender<Action>) -> Result<()> {
-    let mut buff = String::new();
+    let mut buff = vec![];
     let tty = stdin().is_tty();
     if !tty {
-        let result = stdin().read_to_string(&mut buff);
-
+        let result = stdin().read_to_end(&mut buff);
         match result {
             Ok(_) => {
-                action_tx.send(StdinRead(buff))?;
+                let content = String::from_utf8_lossy(&buff);
+                action_tx.send(StdinRead(content.into_owned()))?;
             }
             Err(e) => {
                 action_tx.send(StdinReadFailed(format!(
@@ -845,10 +845,10 @@ fn read_stdin_task(action_tx: Sender<Action>) -> Result<()> {
 
 fn read_file_task(file: String, action_tx: Sender<Action>) -> Result<()> {
     info!("reading input file {file}");
-    let file_content = std::fs::read_to_string(file.clone());
-    match file_content {
+    match std::fs::read(file.clone()) {
         Ok(content) => {
-            action_tx.send(StdinRead(content))?;
+            let content = String::from_utf8_lossy(&content);
+            action_tx.send(StdinRead(content.into_owned()))?;
         }
         Err(e) => {
             action_tx.send(StdinReadFailed(format!(
