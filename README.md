@@ -12,6 +12,7 @@ Rura transforms the tedious "edit, up-arrow, rerun" shell cycle into a fluid, in
 - **Search**: Search and highlight text within the output pane with regex support.
 - **Syntax Highlighting**: Visual feedback for subcommand boundaries, quotes, and pipes.
 - **Persistent History**: Quickly access and reuse previous commands.
+- **Save to File**: Save current output or command to a file.
 - **Line Wrapping**: Toggle whether long output lines wrap to fit the view.
 - **Flexible Error Display**: Choose between "inline" errors (replacing the main view) or a dedicated "pane" (showing both output and errors).
 - **Customizable**: Fully configurable key bindings, themes, and UI placement via TOML.
@@ -131,6 +132,13 @@ rura --last
 - **Home / End**: Move cursor to the beginning or end of the command line.
 - **Ctrl + p**: Previous command in history.
 - **Ctrl + n**: Next command in history.
+
+### Saving to File
+
+- **Ctrl + s**: Save the current output to a file.
+- **Ctrl + Alt + s**: Save the current command to a file.
+
+In the save popup, type a destination path (Tab completes paths) and press Enter to write. Existing files are not overwritten.
 
 ### General
 
