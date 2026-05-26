@@ -4,6 +4,7 @@ mod completable_input;
 mod completion;
 mod config;
 mod debouncer;
+mod help_widget;
 mod history;
 mod output_widget;
 mod props;
