@@ -1,3 +1,13 @@
+## v1.2.0 - 2026-05-26
+
+### Features
+
+- Added support for saving commands and output to files
+
+### Bug Fixes
+
+- Handle non utf-8 input in stdin and file reading tasks
+
 ## v1.1.1 - 2026-05-19
 
 ### Bug Fixes
