@@ -6,6 +6,7 @@ use ratatui::prelude::{Line, Stylize, Widget};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use std::fs::OpenOptions;
 use std::io::Write;
+use std::os::unix::fs::OpenOptionsExt;
 use std::path::PathBuf;
 
 pub struct SaveToFileWidget {
@@ -16,18 +17,30 @@ pub struct SaveToFileWidget {
 }
 
 impl SaveToFileWidget {
-    pub fn new(title: String) -> Self {
+    pub fn new(title: String, shell: String) -> Self {
         Self {
             title,
-            file_path_input: CompletableInput::file_only(""),
+            file_path_input: CompletableInput::file_only("", &shell),
             error_message: None,
             cursor: (0, 0),
         }
     }
 
     pub fn save(&mut self, content: &str) -> anyhow::Result<()> {
+        self.save_file(content, 0o644)
+    }
+
+    pub fn save_executable(&mut self, content: &str) -> anyhow::Result<()> {
+        self.save_file(content, 0o755)
+    }
+
+    fn save_file(&mut self, content: &str, mode: u32) -> anyhow::Result<()> {
         let path = PathBuf::from(self.file_path_input.value().trim());
-        let mut file = OpenOptions::new().create_new(true).write(true).open(path)?;
+        let mut file = OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .mode(mode)
+            .open(path)?;
 
         write!(file, "{}", content)?;
 

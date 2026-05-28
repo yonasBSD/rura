@@ -94,14 +94,15 @@ impl RuraWidget {
     }
 
     pub fn history_next(&mut self) {
-        self.command_input = CompletableInput::from(self.history.next(self.command_input.value()));
+        self.command_input
+            .with_value(self.history.next(self.command_input.value()));
 
         self.command_input.clear_completions()
     }
 
     pub fn history_prev(&mut self) {
-        self.command_input =
-            CompletableInput::from(self.history.previous(self.command_input.value()));
+        self.command_input
+            .with_value(self.history.previous(self.command_input.value()));
 
         self.command_input.clear_completions()
     }
@@ -215,7 +216,7 @@ mod tests {
             let (highlight_reset_tx, _) = std::sync::mpsc::channel::<()>();
             let theme_config = ThemeConfig::default();
             RuraWidget {
-                command_input: CompletableInput::from(""),
+                command_input: CompletableInput::from("", ""),
                 highlight_until: None,
                 theme: Theme::from_config(&theme_config),
                 history: History::in_mem(),

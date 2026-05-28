@@ -4,20 +4,22 @@ use std::io::Write;
 use std::process::{Command, Stdio};
 use std::thread;
 
-pub struct CmdRunner {}
-
-impl Default for CmdRunner {
-    fn default() -> Self {
-        Self {}
-    }
+pub struct CmdRunner {
+    shell: String,
 }
 
 impl CmdRunner {
+    pub fn new(shell: &str) -> Self {
+        Self {
+            shell: shell.into(),
+        }
+    }
+
     pub fn run(&self, command: &str, stdin: &str) -> Result<Output> {
         info!("executing command: '{command}'");
 
         let mut cmd = Command::new("/usr/bin/env");
-        cmd.args(["sh", "-c", &command]);
+        cmd.args([&self.shell, "-c", &command]);
 
         let mut child = cmd
             .stdin(Stdio::piped())

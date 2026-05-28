@@ -46,6 +46,7 @@ pub struct App {
     save_output_widget: SaveToFileWidget,
     save_command_widget: SaveToFileWidget,
     stdin: String,
+    shell: String,
     action_rx: Receiver<Action>,
     command_tx: Sender<(String, String)>,
     key_bindings: KeyBindings,
@@ -66,6 +67,7 @@ impl App {
         error_display_mode: ErrorDisplayMode,
         highlight_duration_ms: u64,
         debounce_duration_ms: u64,
+        shell: String,
     ) -> Self {
         let (action_tx, action_rx) = std::sync::mpsc::channel::<Action>();
         let (command_tx, command_rx) = std::sync::mpsc::channel::<(String, String)>();
@@ -75,8 +77,9 @@ impl App {
         let s1 = action_tx.clone();
         thread::spawn(move || handle_input_task(s1).unwrap());
 
+        let value = shell.clone();
         let s2 = action_tx.clone();
-        thread::spawn(move || handle_command_task(CmdRunner::default(), command_rx, s2).unwrap());
+        thread::spawn(move || handle_command_task(CmdRunner::new(&value), command_rx, s2).unwrap());
 
         let s3 = action_tx.clone();
         thread::spawn(move || {
@@ -107,7 +110,7 @@ impl App {
 
         Self {
             rura_widget: RuraWidget {
-                command_input: CompletableInput::from(args.command.unwrap_or_default()),
+                command_input: CompletableInput::from(&args.command.unwrap_or_default(), &shell),
                 highlight_until: None,
                 theme: Theme::from_config(theme_config),
                 history: History::using_file(),
@@ -122,9 +125,16 @@ impl App {
                 error_display_mode,
             ),
             search_widget: SearchWidget::default(),
-            save_output_widget: SaveToFileWidget::new(" Save output to file ".to_string()),
-            save_command_widget: SaveToFileWidget::new(" Save command to file ".to_string()),
+            save_output_widget: SaveToFileWidget::new(
+                " Save output to file ".to_string(),
+                shell.clone(),
+            ),
+            save_command_widget: SaveToFileWidget::new(
+                " Save command to file ".to_string(),
+                shell.clone(),
+            ),
             stdin: "".into(),
+            shell,
             action_rx,
             command_tx,
             debouncer_tx,
@@ -537,8 +547,9 @@ impl App {
     }
 
     fn save_command_to_file(&mut self) -> Result<()> {
-        self.save_command_widget.save(&format!(
-            "#!/usr/bin/env sh\n\n{}",
+        self.save_command_widget.save_executable(&format!(
+            "#!/usr/bin/env {}\n\n{}",
+            self.shell,
             self.rura_widget.command_input.value()
         ))
     }
@@ -883,7 +894,7 @@ mod tests {
 
             Self {
                 rura_widget: RuraWidget {
-                    command_input: CompletableInput::from(""),
+                    command_input: CompletableInput::from("", ""),
                     highlight_until: None,
                     theme: Theme::from_config(&theme_config),
                     history: History::in_mem(),
@@ -894,10 +905,17 @@ mod tests {
                     ErrorPanePlacement::Bottom,
                     ErrorDisplayMode::Pane,
                 ),
-                save_output_widget: SaveToFileWidget::new(" Save output to file ".into()),
-                save_command_widget: SaveToFileWidget::new(" Save command to file ".into()),
+                save_output_widget: SaveToFileWidget::new(
+                    " Save output to file ".into(),
+                    "".into(),
+                ),
+                save_command_widget: SaveToFileWidget::new(
+                    " Save command to file ".into(),
+                    "".into(),
+                ),
                 search_widget: SearchWidget::default(),
                 stdin: "".into(),
+                shell: "sh".into(),
                 action_rx,
                 command_tx,
                 debouncer_tx,

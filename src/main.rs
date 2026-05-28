@@ -21,11 +21,12 @@ use crate::history::History;
 use anyhow::Result;
 use clap::Parser;
 use env_logger::{Builder, Target};
-use log::{LevelFilter, error, info};
+use log::{LevelFilter, debug, error, info};
 use props::APP_NAME;
-use std::fs;
 use std::fs::OpenOptions;
+use std::path::PathBuf;
 use std::process::exit;
+use std::{env, fs};
 
 fn main() {
     let _: Vec<_> = dirs::cache_dir()
@@ -78,10 +79,31 @@ struct Args {
     #[arg(short = 'C', long)]
     config: Option<String>,
     #[arg(short, long)]
+    shell: Option<String>,
+    #[arg(short, long)]
     last: bool,
 }
 
 fn run(args: Args, config: config::Config) -> Result<()> {
+    let shell = args
+        .shell
+        .clone()
+        .or(config.shell)
+        .or({
+            if let Ok(shell_var) = env::var("SHELL") {
+                let shell_path = PathBuf::from(shell_var);
+                shell_path
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .map(String::from)
+            } else {
+                None
+            }
+        })
+        .unwrap_or("sh".into());
+
+    debug!("Shell: {:?}", shell);
+
     info!("Starting TUI");
     let mut terminal = ratatui::init();
 
@@ -93,6 +115,7 @@ fn run(args: Args, config: config::Config) -> Result<()> {
         config.error_display_mode,
         config.highlight_duration_ms,
         config.debounce_duration_ms,
+        shell,
     );
     let last_command = app.run(&mut terminal)?;
 

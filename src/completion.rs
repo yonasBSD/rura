@@ -3,25 +3,29 @@ use log::{debug, error};
 use std::process::Command;
 
 pub trait Completer {
-    fn completions(&self, input: &str, cursor_pos: usize) -> Option<CompletionResult>;
+    fn completions(&self, prefix: &str, completion_type: CompletionType) -> Vec<String>;
 }
 
-#[derive(Debug, PartialEq)]
-pub struct CompletionResult {
-    pub completions: Vec<String>,
-    pub word_start: usize,
-}
+#[allow(dead_code)]
+pub struct NoopCompleter;
 
-pub struct ShCompleter;
-
-impl Completer for ShCompleter {
-    fn completions(&self, input: &str, cursor_pos: usize) -> Option<CompletionResult> {
-        let (prefix, completion_type, word_start) =
-            ShCompleter::find_completion_prefix(input, cursor_pos);
-
+impl Completer for NoopCompleter {
+    fn completions(&self, prefix: &str, completion_type: CompletionType) -> Vec<String> {
         debug!(
-            "Completion prefix for '{}' @ {}: '{}', type: {:?}, word start: {}",
-            input, cursor_pos, prefix, completion_type, word_start
+            "calling noop completions [{:?}]: '{}'",
+            completion_type, prefix
+        );
+        vec![]
+    }
+}
+
+pub struct BashCompleter;
+
+impl Completer for BashCompleter {
+    fn completions(&self, prefix: &str, completion_type: CompletionType) -> Vec<String> {
+        debug!(
+            "calling bash completions [{:?}]: '{}'",
+            completion_type, prefix
         );
 
         let comp_type_str = match completion_type {
@@ -29,9 +33,12 @@ impl Completer for ShCompleter {
             CompletionType::File => "-f",
         };
 
-        let output = Command::new("sh")
-            .arg("-c")
-            .arg(format!("compgen {} -- \"{}\"", comp_type_str, prefix))
+        let output = Command::new("/usr/bin/env")
+            .args([
+                "bash",
+                "-c",
+                &format!("compgen {} -- \"{}\"", comp_type_str, prefix),
+            ])
             .output();
 
         match output {
@@ -51,75 +58,36 @@ impl Completer for ShCompleter {
                     completions
                 );
 
-                if completions.is_empty() {
-                    None
-                } else {
-                    Some(CompletionResult {
-                        completions,
-                        word_start,
-                    })
-                }
+                completions
             }
             Err(e) => {
                 error!("Failed fetching completions {}", e);
-                None
+                vec![]
             }
         }
     }
 }
 
-impl ShCompleter {
-    fn find_completion_prefix(input: &str, cursor_pos: usize) -> (String, CompletionType, usize) {
-        let input_up_to_cursor = &input[..cursor_pos];
+pub struct ZshCompleter;
 
-        let word_start = input_up_to_cursor
-            .rfind(|c: char| c.is_whitespace() || c == '|')
-            .map(|i| i + 1)
-            .unwrap_or(0);
-        let prefix = &input_up_to_cursor[word_start..];
-
-        // It's a command if it's the first word after the beginning of the string or after a pipe.
-        // todo env vars before command
-        let before_word = &input_up_to_cursor[..word_start].trim_end();
-        let completion_type = if before_word.is_empty() || before_word.ends_with('|') {
-            CompletionType::Command
-        } else {
-            CompletionType::File
-        };
-
-        (prefix.to_string(), completion_type, word_start)
-    }
-}
-
-pub struct FileOnlyShCompleter;
-
-impl Completer for FileOnlyShCompleter {
-    fn completions(&self, input: &str, cursor_pos: usize) -> Option<CompletionResult> {
-        let (prefix, completion_type, word_start) = {
-            let input_up_to_cursor = &input[..cursor_pos];
-
-            let word_start = input_up_to_cursor
-                .rfind(|c: char| c.is_whitespace())
-                .map(|i| i + 1)
-                .unwrap_or(0);
-            let prefix = &input_up_to_cursor[word_start..];
-
-            (prefix.to_string(), CompletionType::File, word_start)
-        };
-
+impl Completer for ZshCompleter {
+    fn completions(&self, prefix: &str, completion_type: CompletionType) -> Vec<String> {
         debug!(
-            "Completion prefix for '{}' @ {}: '{}', type: {:?}, word start: {}",
-            input, cursor_pos, prefix, completion_type, word_start
+            "calling zsh completions [{:?}]: '{}'",
+            completion_type, prefix
         );
 
-        let comp_type_str = match completion_type {
-            CompletionType::Command => "-c",
-            CompletionType::File => "-f",
+        let cmd = match completion_type {
+            CompletionType::Command => {
+                format!("print -l ${{(k)commands[(I){}*]}}", prefix)
+            }
+            CompletionType::File => {
+                format!("setopt extended_glob && print -l (#i){}*(N)", prefix)
+            }
         };
 
-        let output = Command::new("sh")
-            .arg("-c")
-            .arg(format!("compgen {} -- \"{}\"", comp_type_str, prefix))
+        let output = Command::new("/usr/bin/env")
+            .args(["zsh", "-c", &cmd])
             .output();
 
         match output {
@@ -128,10 +96,8 @@ impl Completer for FileOnlyShCompleter {
                 let completions: Vec<String> = stdout
                     .lines()
                     .map(|s| s.to_string())
-                    .unique()
-                    .sorted_by(|a, b| a.len().cmp(&b.len()))
-                    .sorted()
-                    .collect();
+                    .filter(|s| !s.is_empty())
+                    .collect_vec();
 
                 debug!(
                     "completion results [{}]: {:?}",
@@ -139,62 +105,31 @@ impl Completer for FileOnlyShCompleter {
                     completions
                 );
 
-                if completions.is_empty() {
-                    None
-                } else {
-                    Some(CompletionResult {
-                        completions,
-                        word_start,
-                    })
-                }
+                completions
             }
             Err(e) => {
-                error!("Failed fetching completions {}", e);
-                None
+                error!("Failed fetching zsh completions {}", e);
+                vec![]
             }
         }
     }
 }
 
 #[derive(Debug, PartialEq)]
-enum CompletionType {
+pub enum CompletionType {
     Command,
     File,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub struct Completers;
 
-    #[test]
-    fn test_find_completion_prefix() {
-        assert_eq!(
-            ShCompleter::find_completion_prefix("grep ", 5),
-            ("".to_string(), CompletionType::File, 5)
-        );
-        assert_eq!(
-            ShCompleter::find_completion_prefix("grep f", 6),
-            ("f".to_string(), CompletionType::File, 5)
-        );
-        assert_eq!(
-            ShCompleter::find_completion_prefix("ls|gr", 5),
-            ("gr".to_string(), CompletionType::Command, 3)
-        );
-        assert_eq!(
-            ShCompleter::find_completion_prefix("ls | gr", 7),
-            ("gr".to_string(), CompletionType::Command, 5)
-        );
-        assert_eq!(
-            ShCompleter::find_completion_prefix("ls | ", 5),
-            ("".to_string(), CompletionType::Command, 5)
-        );
-        assert_eq!(
-            ShCompleter::find_completion_prefix("grep foo", 8),
-            ("foo".to_string(), CompletionType::File, 5)
-        );
-        assert_eq!(
-            ShCompleter::find_completion_prefix("grep foo ", 9),
-            ("".to_string(), CompletionType::File, 9)
-        );
+impl Completers {
+    pub fn for_shell(shell: &str) -> Box<dyn Completer> {
+        match shell {
+            "bash" => Box::new(BashCompleter {}),
+            "zsh" => Box::new(ZshCompleter {}),
+            "sh" => Box::new(NoopCompleter {}),
+            _ => Box::new(BashCompleter {}),
+        }
     }
 }
