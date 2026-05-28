@@ -7,7 +7,8 @@ Rura transforms the tedious "edit, up-arrow, rerun" shell cycle into a fluid, in
 ## Features
 
 - **Partial Pipeline Execution**: Execute only up to the current subcommand to debug complex pipes.
-- **Context-aware Completion**: Tab-complete commands and file paths using your system's bash tools.
+- **Context-aware Completion**: Tab-complete commands and file paths using your system's bash, zsh, or fish tools.
+- **Custom Shell Support**: Specify which shell to use for command execution and completions.
 - **Live Execution Modes**: Real-time feedback as you type, with optional "Live Until Cursor" or "Live Full" modes.
 - **Search**: Search and highlight text within the output pane with regex support.
 - **Syntax Highlighting**: Visual feedback for subcommand boundaries, quotes, and pipes.
@@ -95,6 +96,7 @@ rura --last
 - `-c, --command <COMMAND>`: Initial command to populate the input field.
 - `-C, --config <FILE>`: Path to a custom TOML configuration file.
 - `-l, --last`: Print the last command from history and exit.
+- `-s, --shell <SHELL>`: Specify the shell to use for execution and completions (e.g., `bash`, `zsh`, `fish`).
 - `-V, --version`: Print version information.
 
 ## Key Bindings
@@ -125,7 +127,7 @@ rura --last
 
 ### Command Input & Subcommands
 
-- **Tab**: Trigger forward command or file completion (requires `bash` with `compgen` available).
+- **Tab**: Trigger forward command or file completion (requires `bash`, `zsh`, or `fish` available).
 - **Shift + Tab**: Trigger backward command or file completion.
 - **Alt + Right**: Move cursor to the next subcommand.
 - **Alt + Left**: Move cursor to the previous subcommand.
@@ -147,7 +149,13 @@ In the save popup, type a destination path (Tab completes paths) and press Enter
 
 ## Configuration
 
-Rura can be configured via a TOML file. The configuration path is determined as follows:
+Rura can be configured via a TOML file. The shell used by Rura is determined by (in order of priority):
+1. The `--shell` (or `-s`) CLI argument.
+2. The `shell` property in the configuration file.
+3. The `SHELL` environment variable.
+4. Default to `sh`.
+
+The configuration path is determined as follows:
 1. Path specified by the `--config` (or `-C`) CLI argument.
 2. Path specified by the `RURA_CONFIG` environment variable.
 3. Default path:
@@ -162,6 +170,8 @@ Rura can be configured via a TOML file. The configuration path is determined as 
     - `pane`: A dedicated error pane appears, allowing you to see the error message while still viewing the last successful output in the main area.
 - `highlight_duration_ms`: Duration in milliseconds for the temporary highlighting when executing commands (default: `250`).
 - `debounce_duration_ms`: Duration in milliseconds to wait before executing commands in live mode (default: `500`).
+- `shell`: The shell to use for execution and completions (e.g., `"bash"`, `"zsh"`, `"fish"`).
+- `log_level`: Set the logging level (e.g., `"info"`, `"debug"`, `"error"`). Default is `"info"`.
 
 ### Customizing Key Bindings
 
