@@ -115,6 +115,53 @@ impl Completer for ZshCompleter {
     }
 }
 
+pub struct FishCompleter;
+
+impl Completer for FishCompleter {
+    fn completions(&self, prefix: &str, completion_type: CompletionType) -> Vec<String> {
+        debug!(
+            "calling fish completions [{:?}]: '{}'",
+            completion_type, prefix
+        );
+
+        let cmd = match completion_type {
+            CompletionType::Command => {
+                format!("complete -C {} | cut -f1", prefix)
+            }
+            CompletionType::File => {
+                format!("complete -C \"cat {}\"", prefix)
+            }
+        };
+
+        let output = Command::new("/usr/bin/env")
+            .args(["fish", "-c", &cmd])
+            .output();
+
+        match output {
+            Ok(output) => {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let completions: Vec<String> = stdout
+                    .lines()
+                    .map(|s| s.to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect_vec();
+
+                debug!(
+                    "completion results [{}]: {:?}",
+                    completions.len(),
+                    completions
+                );
+
+                completions
+            }
+            Err(e) => {
+                error!("Failed fetching fish completions {}", e);
+                vec![]
+            }
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum CompletionType {
     Command,
@@ -128,6 +175,7 @@ impl Completers {
         match shell {
             "bash" => Box::new(BashCompleter {}),
             "zsh" => Box::new(ZshCompleter {}),
+            "fish" => Box::new(FishCompleter {}),
             "sh" => Box::new(NoopCompleter {}),
             _ => Box::new(BashCompleter {}),
         }
