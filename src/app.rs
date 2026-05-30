@@ -9,7 +9,7 @@ use crate::debouncer::debouncer_task;
 use crate::help_widget::HelpWidget;
 use crate::history::History;
 use crate::output_widget::{ErrorDisplayMode, ErrorPanePlacement, OutputWidget};
-use crate::rura::ExecuteType;
+use crate::rura::{ExecuteType, RuraCommand};
 use crate::rura_widget::RuraWidget;
 use crate::save_to_file_widget::SaveToFileWidget;
 use crate::search_widget::SearchWidget;
@@ -48,7 +48,7 @@ pub struct App {
     stdin: String,
     shell: String,
     action_rx: Receiver<Action>,
-    command_tx: Sender<(String, String)>,
+    command_tx: Sender<(RuraCommand, String)>,
     key_bindings: KeyBindings,
     command_line_placement: CommandLinePlacement,
     input_mode: InputMode,
@@ -70,7 +70,7 @@ impl App {
         shell: String,
     ) -> Self {
         let (action_tx, action_rx) = std::sync::mpsc::channel::<Action>();
-        let (command_tx, command_rx) = std::sync::mpsc::channel::<(String, String)>();
+        let (command_tx, command_rx) = std::sync::mpsc::channel::<(RuraCommand, String)>();
         let (highlight_reset_tx, highlight_reset_rx) = std::sync::mpsc::channel::<()>();
         let (debouncer_tx, debouncer_rx) = std::sync::mpsc::channel::<()>();
 
@@ -760,12 +760,12 @@ impl App {
 
 fn handle_command_task(
     cmd_runner: CmdRunner,
-    command_rx: Receiver<(String, String)>,
+    command_rx: Receiver<(RuraCommand, String)>,
     action_tx: Sender<Action>,
 ) -> Result<()> {
     loop {
         if let Ok((command, stdin)) = command_rx.recv() {
-            match cmd_runner.run(&command, &stdin) {
+            match cmd_runner.run(command, &stdin) {
                 Ok(output) => {
                     let _ = action_tx.send(CommandCompleted(output));
                 }
@@ -885,7 +885,7 @@ mod tests {
     impl Default for App {
         fn default() -> Self {
             let (_, action_rx) = std::sync::mpsc::channel::<Action>();
-            let (command_tx, _) = std::sync::mpsc::channel::<(String, String)>();
+            let (command_tx, _) = std::sync::mpsc::channel::<(RuraCommand, String)>();
             let (highlight_reset_tx, _) = std::sync::mpsc::channel::<()>();
             let (debouncer_tx, _) = std::sync::mpsc::channel::<()>();
 

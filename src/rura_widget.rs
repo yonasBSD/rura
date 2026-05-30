@@ -1,6 +1,6 @@
 use crate::completable_input::CompletableInput;
 use crate::history::History;
-use crate::rura::{ExecuteType, Part, Rura};
+use crate::rura::{ExecuteType, Part, Rura, RuraCommand};
 use crate::theme::Theme;
 use anyhow::Result;
 use crossterm::event::Event;
@@ -107,7 +107,7 @@ impl RuraWidget {
         self.command_input.clear_completions()
     }
 
-    pub fn execute(&mut self, execute_type: ExecuteType) -> Result<Option<String>> {
+    pub fn execute(&mut self, execute_type: ExecuteType) -> Result<Option<RuraCommand>> {
         if self.command_input.value().is_empty() {
             return Ok(None);
         }
@@ -125,7 +125,7 @@ impl RuraWidget {
                         self.highlight_until = Some(command.until);
                         let _ = self.highlight_reset_tx.send(());
                     }
-                    Ok(Some(command.to_run))
+                    Ok(Some(command))
                 }
             },
             Err(e) => {

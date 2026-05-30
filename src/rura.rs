@@ -425,17 +425,16 @@ impl fmt::Display for ParseError {
 
 impl std::error::Error for ParseError {}
 
-fn join_parts(parts: &[Vec<Part>]) -> String {
+fn join_parts(parts: &[Vec<Part>]) -> Vec<String> {
     parts
         .iter()
         .map(|p| p.iter().map(|part| part.content()).collect::<String>())
         .collect::<Vec<String>>()
-        .join("|")
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RuraCommand {
-    pub to_run: String,
+    pub to_run: Vec<String>,
     pub until: usize,
 }
 
@@ -450,14 +449,14 @@ mod tests {
         assert_eq!(
             rura.command(&Full),
             Some(RuraCommand {
-                to_run: "a|b|c".into(),
+                to_run: vec!["a".into(), "b".into(), "c".into()],
                 until: 2
             })
         );
         assert_eq!(
             rura.command(&UntilCurrent),
             Some(RuraCommand {
-                to_run: "a".into(),
+                to_run: vec!["a".into()],
                 until: 0
             })
         );
@@ -467,14 +466,14 @@ mod tests {
         assert_eq!(
             rura.command(&Full),
             Some(RuraCommand {
-                to_run: "a|b|c".into(),
+                to_run: vec!["a".into(), "b".into(), "c".into()],
                 until: 2
             })
         );
         assert_eq!(
             rura.command(&UntilCurrent),
             Some(RuraCommand {
-                to_run: "a".into(),
+                to_run: vec!["a".into()],
                 until: 0
             })
         );
@@ -484,21 +483,21 @@ mod tests {
         assert_eq!(
             rura.command(&Full),
             Some(RuraCommand {
-                to_run: "a|b|c".into(),
+                to_run: vec!["a".into(), "b".into(), "c".into()],
                 until: 2
             })
         );
         assert_eq!(
             rura.command(&UntilCurrent),
             Some(RuraCommand {
-                to_run: "a|b".into(),
+                to_run: vec!["a".into(), "b".into()],
                 until: 1
             })
         );
         assert_eq!(
             rura.command(&UntilCurrentPrev),
             Some(RuraCommand {
-                to_run: "a".into(),
+                to_run: vec!["a".into()],
                 until: 0
             })
         );
@@ -507,21 +506,21 @@ mod tests {
         assert_eq!(
             rura.command(&Full),
             Some(RuraCommand {
-                to_run: "a|b|c".into(),
+                to_run: vec!["a".into(), "b".into(), "c".into()],
                 until: 2
             })
         );
         assert_eq!(
             rura.command(&UntilCurrent),
             Some(RuraCommand {
-                to_run: "a|b".into(),
+                to_run: vec!["a".into(), "b".into()],
                 until: 1
             })
         );
         assert_eq!(
             rura.command(&UntilCurrentPrev),
             Some(RuraCommand {
-                to_run: "a".into(),
+                to_run: vec!["a".into()],
                 until: 0
             })
         );
@@ -530,21 +529,21 @@ mod tests {
         assert_eq!(
             rura.command(&Full),
             Some(RuraCommand {
-                to_run: "a|b|c".into(),
+                to_run: vec!["a".into(), "b".into(), "c".into()],
                 until: 2
             })
         );
         assert_eq!(
             rura.command(&UntilCurrent),
             Some(RuraCommand {
-                to_run: "a|b|c".into(),
+                to_run: vec!["a".into(), "b".into(), "c".into()],
                 until: 2
             })
         );
         assert_eq!(
             rura.command(&UntilCurrentPrev),
             Some(RuraCommand {
-                to_run: "a|b".into(),
+                to_run: vec!["a".into(), "b".into()],
                 until: 1
             })
         );
