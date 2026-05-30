@@ -407,8 +407,14 @@ impl App {
                     UiCmd::ScrollLeft => {
                         self.output_widget.scroll_left();
                     }
+                    UiCmd::ScrollLeftPage => {
+                        self.output_widget.scroll_page_left();
+                    }
                     UiCmd::ScrollRight => {
                         self.output_widget.scroll_right();
+                    }
+                    UiCmd::ScrollRightPage => {
+                        self.output_widget.scroll_page_right();
                     }
                     UiCmd::ToggleWrap => {
                         self.output_widget.toggle_wrap();
@@ -528,9 +534,13 @@ impl App {
                     UiCmd::ScrollLeft => {
                         self.output_widget.scroll_left();
                     }
+                    UiCmd::ScrollLeftPage => {
+                        self.output_widget.scroll_page_left();
+                    }
                     UiCmd::ScrollRight => {
                         self.output_widget.scroll_right();
                     }
+                    UiCmd::ScrollRightPage => self.output_widget.scroll_page_right(),
                     UiCmd::ToggleWrap => {
                         self.output_widget.toggle_wrap();
                     }

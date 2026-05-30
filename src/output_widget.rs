@@ -213,10 +213,23 @@ impl OutputWidget {
         self.offset.col = self.offset.col.saturating_sub(1);
     }
 
+    pub fn scroll_page_left(&mut self) {
+        let page_size = self.output_content_area_size.width as usize / 2;
+        self.offset.col = self.offset.col.saturating_sub(page_size);
+    }
+
     pub fn scroll_right(&mut self) {
         if self.main_output_width() > self.viewport().cols.len() {
             let max_offset = self.main_output_width().saturating_sub(1); // keep at least one line visible
             self.offset.col = self.offset.col.saturating_add(1).min(max_offset);
+        }
+    }
+
+    pub fn scroll_page_right(&mut self) {
+        if self.main_output_width() > self.viewport().cols.len() {
+            let max_offset = self.main_output_width().saturating_sub(1); // keep at least one line visible
+            let page_size = self.output_content_area_size.width as usize / 2;
+            self.offset.col = self.offset.col.saturating_add(page_size).min(max_offset);
         }
     }
 

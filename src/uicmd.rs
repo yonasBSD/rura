@@ -15,7 +15,9 @@ pub enum UiCmd {
     ScrollUp,
     ScrollUpPage,
     ScrollLeft,
+    ScrollLeftPage,
     ScrollRight,
+    ScrollRightPage,
     ToggleWrap,
     HistoryPrev,
     HistoryNext,
@@ -55,7 +57,15 @@ impl KeyBindings {
         bindings.insert(UiCmd::ScrollUp, parse_bindings(&config.scroll_up));
         bindings.insert(UiCmd::ScrollUpPage, parse_bindings(&config.scroll_up_page));
         bindings.insert(UiCmd::ScrollLeft, parse_bindings(&config.scroll_left));
+        bindings.insert(
+            UiCmd::ScrollLeftPage,
+            parse_bindings(&config.scroll_left_page),
+        );
         bindings.insert(UiCmd::ScrollRight, parse_bindings(&config.scroll_right));
+        bindings.insert(
+            UiCmd::ScrollRightPage,
+            parse_bindings(&config.scroll_right_page),
+        );
         bindings.insert(UiCmd::ToggleWrap, parse_bindings(&config.toggle_wrap));
         bindings.insert(UiCmd::HistoryPrev, parse_bindings(&config.history_prev));
         bindings.insert(UiCmd::HistoryNext, parse_bindings(&config.history_next));

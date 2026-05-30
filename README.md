@@ -111,8 +111,8 @@ rura --last
 ### Navigation & View
 
 - **Arrows** or **Alt + h/j/k/l**: Scroll the output (Left, Down, Up, Right).
-- **PageUp / PageDown** or **Alt + Up / Down**: Scroll the output by page.
-- **Ctrl + u / Ctrl + d**: Scroll up or down quickly.
+- **PageUp / PageDown**, **Alt + Up / Down** or **Alt + Shift + j / k** or **Ctrl + u / Ctrl + d**: Scroll the output up/down by page.
+- **Alt + Shift + h / l**: Scroll the output left/right by page.
 - **Alt + w**: Toggle line wrapping.
 
 ### Search
