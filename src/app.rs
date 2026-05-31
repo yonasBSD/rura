@@ -1,6 +1,4 @@
-use crate::app::Action::{
-    CommandCompleted, Debounced, ResetHighlight, StdinRead, StdinReadFailed, UserInput,
-};
+use crate::app::Action::{CommandCompleted, Debounced, ResetHighlight, UserInput};
 use crate::args::Args;
 use crate::cmd_runner::{CmdResult, CmdRunner, CmdRunners, Output};
 use crate::completable_input::CompletableInput;
@@ -9,14 +7,14 @@ use crate::debouncer::debouncer_task;
 use crate::help_widget::HelpWidget;
 use crate::history::History;
 use crate::output_widget::{ErrorDisplayMode, ErrorPanePlacement, OutputWidget};
-use crate::rura::{ExecuteType, RuraCommand};
+use crate::rura::ExecuteType;
 use crate::rura_widget::RuraWidget;
 use crate::save_to_file_widget::SaveToFileWidget;
 use crate::search_widget::SearchWidget;
 use crate::theme::Theme;
 use crate::uicmd::{KeyBindings, UiCmd, to_ui_command};
 use KeyCode::{Enter, Esc, F};
-use anyhow::Result;
+use anyhow::{Error, Result};
 use crossterm::event::KeyCode::Char;
 use crossterm::event::{KeyCode, KeyModifiers};
 use crossterm::tty::IsTty;
@@ -46,10 +44,9 @@ pub struct App {
     help_widget: HelpWidget,
     save_output_widget: SaveToFileWidget,
     save_command_widget: SaveToFileWidget,
-    stdin: String,
     shell: String,
     action_rx: Receiver<Action>,
-    command_tx: Sender<(RuraCommand, String)>,
+    command_tx: Sender<Vec<String>>,
     key_bindings: KeyBindings,
     command_line_placement: CommandLinePlacement,
     input_mode: InputMode,
@@ -81,7 +78,7 @@ impl App {
         debug!("Shell: {:?}", shell);
 
         let (action_tx, action_rx) = std::sync::mpsc::channel::<Action>();
-        let (command_tx, command_rx) = std::sync::mpsc::channel::<(RuraCommand, String)>();
+        let (command_tx, command_rx) = std::sync::mpsc::channel::<Vec<String>>();
         let (highlight_reset_tx, highlight_reset_rx) = std::sync::mpsc::channel::<()>();
         let (debouncer_tx, debouncer_rx) = std::sync::mpsc::channel::<()>();
 
@@ -90,22 +87,32 @@ impl App {
 
         let value = shell.clone();
         let s2 = action_tx.clone();
+        let ctx = command_tx.clone();
         thread::spawn(move || {
-            handle_command_task(CmdRunners::new(&value, args.use_cache), command_rx, s2).unwrap()
+            let stdin = if let Some(file) = args.file {
+                read_file_task(file).unwrap()
+            } else {
+                read_stdin_task().unwrap()
+            };
+
+            thread::spawn(move || {
+                handle_command_task(
+                    CmdRunners::new(&value, stdin, args.use_cache),
+                    command_rx,
+                    s2,
+                )
+                .unwrap();
+            });
+
+            while let Err(_) = ctx.send(vec![]) {
+                thread::sleep(Duration::from_millis(100));
+                debug!("Waiting for command_rx to accept commands");
+            }
         });
 
         let s3 = action_tx.clone();
         thread::spawn(move || {
-            if let Some(file) = args.file {
-                read_file_task(file, s3).unwrap()
-            } else {
-                read_stdin_task(s3).unwrap()
-            }
-        });
-
-        let s4 = action_tx.clone();
-        thread::spawn(move || {
-            reset_highlight_task(highlight_reset_rx, s4, config.highlight_duration_ms).unwrap()
+            reset_highlight_task(highlight_reset_rx, s3, config.highlight_duration_ms).unwrap()
         });
 
         thread::spawn(move || {
@@ -146,7 +153,6 @@ impl App {
                 " Save command to file ".to_string(),
                 shell.clone(),
             ),
-            stdin: "".into(),
             shell,
             action_rx,
             command_tx,
@@ -176,21 +182,12 @@ impl App {
         match action {
             UserInput(event) => self.handle_event(&event),
             CommandCompleted(result) => {
-                if result.output.ok {
+                if result.output.ok && !result.command.is_empty() {
                     self.rura_widget.history.push(&result.command)
                 }
                 self.output_widget.handle_command_output(result.output)
             }
             ResetHighlight => self.rura_widget.highlight_until = None,
-            StdinRead(output) => {
-                self.output_widget
-                    .handle_command_output(Output::ok_stdin(&output));
-                self.stdin = output;
-            }
-            StdinReadFailed(output) => {
-                self.output_widget
-                    .handle_command_output(Output::err_stdin(&output));
-            }
             Debounced => {
                 match self.input_mode {
                     InputMode::Normal => {
@@ -483,8 +480,7 @@ impl App {
                     UiCmd::ExecuteUntilCurrent => self.handle_execute(ExecuteType::UntilCurrent),
                     UiCmd::ExecuteUntilPrev => self.handle_execute(ExecuteType::UntilCurrentPrev),
                     UiCmd::ResetInput => {
-                        self.output_widget
-                            .handle_command_output(Output::ok_stdin(&self.stdin));
+                        self.command_tx.send(vec![]).unwrap();
                     }
                     UiCmd::SubcommandNext => {
                         self.rura_widget.subcommand_next();
@@ -577,10 +573,8 @@ impl App {
 
     fn handle_execute(&mut self, kind: ExecuteType) {
         match self.rura_widget.execute(kind) {
-            Ok(Some(c)) => self.command_tx.send((c, self.stdin.clone())).unwrap(),
-            Ok(None) => self
-                .output_widget
-                .handle_command_output(Output::ok_stdin(&self.stdin)),
+            Ok(Some(c)) => self.command_tx.send(c.to_run).unwrap(),
+            Ok(None) => self.command_tx.send(vec![]).unwrap(),
             Err(_) => {}
         }
     }
@@ -781,12 +775,12 @@ impl App {
 
 fn handle_command_task(
     mut cmd_runner: Box<dyn CmdRunner>,
-    command_rx: Receiver<(RuraCommand, String)>,
+    command_rx: Receiver<Vec<String>>,
     action_tx: Sender<Action>,
 ) -> Result<()> {
     loop {
-        if let Ok((command, stdin)) = command_rx.recv() {
-            match cmd_runner.run(command.to_run, &stdin) {
+        if let Ok(command) = command_rx.recv() {
+            match cmd_runner.run(command) {
                 Ok(result) => {
                     let _ = action_tx.send(CommandCompleted(result));
                 }
@@ -813,45 +807,33 @@ fn handle_input_task(tx: Sender<Action>) -> Result<()> {
     }
 }
 
-fn read_stdin_task(action_tx: Sender<Action>) -> Result<()> {
+fn read_stdin_task() -> Result<Vec<u8>> {
     let mut buff = vec![];
     let tty = stdin().is_tty();
     if !tty {
         let result = stdin().read_to_end(&mut buff);
         match result {
-            Ok(_) => {
-                let content = String::from_utf8_lossy(&buff);
-                action_tx.send(StdinRead(content.into_owned()))?;
-            }
-            Err(e) => {
-                action_tx.send(StdinReadFailed(format!(
-                    "Failed reading stdin: {}",
-                    e.to_string()
-                )))?;
-            }
+            Ok(_) => Ok(buff),
+            Err(e) => Err(Error::msg(format!(
+                "Failed reading stdin: {}",
+                e.to_string()
+            ))),
         }
-        Ok(())
     } else {
-        Ok(())
+        Ok("".into())
     }
 }
 
-fn read_file_task(file: String, action_tx: Sender<Action>) -> Result<()> {
+fn read_file_task(file: String) -> Result<Vec<u8>> {
     info!("reading input file {file}");
     match std::fs::read(file.clone()) {
-        Ok(content) => {
-            let content = String::from_utf8_lossy(&content);
-            action_tx.send(StdinRead(content.into_owned()))?;
-        }
-        Err(e) => {
-            action_tx.send(StdinReadFailed(format!(
-                "Failed reading input file {}: {}",
-                file,
-                e.to_string()
-            )))?;
-        }
+        Ok(content) => Ok(content),
+        Err(e) => Err(Error::msg(format!(
+            "Failed reading input file {}: {}",
+            file,
+            e.to_string()
+        ))),
     }
-    Ok(())
 }
 
 fn reset_highlight_task(rx: Receiver<()>, tx: Sender<Action>, duration_ms: u64) -> Result<()> {
@@ -866,8 +848,6 @@ fn reset_highlight_task(rx: Receiver<()>, tx: Sender<Action>, duration_ms: u64) 
 enum Action {
     UserInput(Event),
     CommandCompleted(CmdResult),
-    StdinRead(String),
-    StdinReadFailed(String),
     ResetHighlight,
     Debounced,
 }
@@ -909,7 +889,7 @@ mod tests {
     impl Default for App {
         fn default() -> Self {
             let (_, action_rx) = std::sync::mpsc::channel::<Action>();
-            let (command_tx, _) = std::sync::mpsc::channel::<(RuraCommand, String)>();
+            let (command_tx, _) = std::sync::mpsc::channel::<Vec<String>>();
             let (highlight_reset_tx, _) = std::sync::mpsc::channel::<()>();
             let (debouncer_tx, _) = std::sync::mpsc::channel::<()>();
 
@@ -938,7 +918,6 @@ mod tests {
                     "".into(),
                 ),
                 search_widget: SearchWidget::default(),
-                stdin: "".into(),
                 shell: "sh".into(),
                 action_rx,
                 command_tx,
