@@ -96,6 +96,7 @@ rura --last
 - `-c, --command <COMMAND>`: Initial command to populate the input field.
 - `-C, --config <FILE>`: Path to a custom TOML configuration file.
 - `-l, --last`: Print the last command from history and exit.
+- `--no-cache`: Disable caching of command output.
 - `-s, --shell <SHELL>`: Specify the shell to use for execution and completions (e.g., `bash`, `zsh`, `fish`).
 - `-V, --version`: Print version information.
 
@@ -171,6 +172,7 @@ The configuration path is determined as follows:
 - `highlight_duration_ms`: Duration in milliseconds for the temporary highlighting when executing commands (default: `250`).
 - `debounce_duration_ms`: Duration in milliseconds to wait before executing commands in live mode (default: `500`).
 - `shell`: The shell to use for execution and completions (e.g., `"bash"`, `"zsh"`, `"fish"`).
+- `no_cache`: Disable caching of command output when set to `true` (default: `false`).
 - `log_level`: Set the logging level (e.g., `"info"`, `"debug"`, `"error"`). Default is `"info"`.
 
 ### Customizing Key Bindings
@@ -224,3 +226,4 @@ Rura maintains a persistent command history. The history file is located at:
 Application logs are useful for troubleshooting. They are stored at:
 - **Linux**: `~/.cache/rura/logs.txt`
 - **macOS**: `~/Library/Caches/rura/logs.txt`
+- 

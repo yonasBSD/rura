@@ -86,6 +86,7 @@ impl App {
         let s1 = action_tx.clone();
         thread::spawn(move || handle_input_task(s1).unwrap());
 
+        let no_cache = args.no_cache || config.no_cache;
         let value = shell.clone();
         let s2 = action_tx.clone();
         let ctx = command_tx.clone();
@@ -97,12 +98,8 @@ impl App {
             };
 
             thread::spawn(move || {
-                handle_command_task(
-                    CmdRunners::new(&value, stdin, args.no_cache),
-                    command_rx,
-                    s2,
-                )
-                .unwrap();
+                handle_command_task(CmdRunners::new(&value, stdin, no_cache), command_rx, s2)
+                    .unwrap();
             });
 
             while let Err(_) = ctx.send(vec![]) {

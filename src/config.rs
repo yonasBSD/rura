@@ -155,6 +155,7 @@ pub struct Config {
     pub highlight_duration_ms: u64,
     pub debounce_duration_ms: u64,
     pub shell: Option<String>,
+    pub no_cache: bool,
 }
 
 impl Default for Config {
@@ -168,6 +169,7 @@ impl Default for Config {
             highlight_duration_ms: 250,
             debounce_duration_ms: 500,
             shell: None,
+            no_cache: false,
         }
     }
 }
