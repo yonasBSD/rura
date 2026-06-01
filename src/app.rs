@@ -1,4 +1,6 @@
-use crate::app::Action::{CommandCompleted, Debounced, ResetHighlight, UserInput};
+use crate::app::Action::{
+    CommandCompleted, Debounced, ResetHighlight, StartProgress, StopProgress, UserInput,
+};
 use crate::args::Args;
 use crate::cmd_runner::{CmdResult, CmdRunner, CmdRunners, Output};
 use crate::completable_input::CompletableInput;
@@ -34,7 +36,7 @@ use serde::{Deserialize, Serialize};
 use std::io::{Read, stdin};
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, Sender};
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 use std::{env, thread};
 use tui_popup::Popup;
 
@@ -54,6 +56,7 @@ pub struct App {
     debouncer_tx: Sender<()>,
     active_mode: ActiveMode,
     active_modal: ActiveModal,
+    in_progress: Option<SystemTime>,
     exit: bool,
 }
 
@@ -162,6 +165,7 @@ impl App {
             input_mode: InputMode::Normal,
             active_mode: ActiveMode::default(),
             active_modal: ActiveModal::default(),
+            in_progress: None,
             exit: false,
         }
     }
@@ -199,6 +203,12 @@ impl App {
                         self.handle_execute(ExecuteType::UntilCurrentLive)
                     }
                 }
+            }
+            StartProgress(time) => {
+                self.in_progress = Some(time);
+            }
+            StopProgress => {
+                self.in_progress = None;
             }
         }
     }
@@ -674,10 +684,11 @@ impl App {
             ErrorDisplayMode::Pane => Span::from(""),
         };
 
-        let [_, exit_code_area, hints_area, lines_area, _] = Layout::default()
+        let [_, exec_area, exit_code_area, hints_area, lines_area, _] = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(vec![
                 Constraint::Length(1),
+                Constraint::Length(4),
                 Constraint::Length(status_text.width() as u16 + 1),
                 Constraint::Fill(1),
                 Constraint::Length(self.output_widget.output_len().to_string().len() as u16 + 3),
@@ -690,6 +701,14 @@ impl App {
         match self.output_widget.error_display_mode {
             ErrorDisplayMode::Pane => (),
             ErrorDisplayMode::Inline => frame.render_widget(status_text, exit_code_area),
+        }
+
+        // Render progress indicator only if command runs for more than defined time
+        // It reduces flickering when command is fast and progress indicator is not needed.
+        if let Some(time) = self.in_progress
+            && time.elapsed().unwrap() > Duration::from_millis(100)
+        {
+            frame.render_widget(">>>".bold().rapid_blink(), exec_area);
         }
 
         frame.render_widget(
@@ -780,6 +799,8 @@ fn handle_command_task(
 ) -> Result<()> {
     loop {
         if let Ok(command) = command_rx.recv() {
+            action_tx.send(StartProgress(SystemTime::now()))?;
+
             match cmd_runner.run(command) {
                 Ok(result) => {
                     let _ = action_tx.send(CommandCompleted(result));
@@ -797,6 +818,8 @@ fn handle_command_task(
                     error!("{}", e)
                 }
             }
+
+            action_tx.send(StopProgress)?;
         }
     }
 }
@@ -853,6 +876,8 @@ enum Action {
     CommandCompleted(CmdResult),
     ResetHighlight,
     Debounced,
+    StartProgress(SystemTime),
+    StopProgress,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -933,6 +958,7 @@ mod tests {
                 input_mode: InputMode::Normal,
                 active_mode: ActiveMode::default(),
                 active_modal: ActiveModal::default(),
+                in_progress: None,
             }
         }
     }
