@@ -21,6 +21,7 @@ pub struct RuraWidget {
     pub theme: Theme,
     pub history: History,
     pub highlight_reset_tx: Sender<()>,
+    pub failed_subcommand: Option<usize>,
 }
 
 impl Widget for &RuraWidget {
@@ -33,7 +34,7 @@ impl Widget for &RuraWidget {
                 self.command_input.value(),
                 self.command_input.visual_cursor(),
             ) {
-                Ok(r) => to_line(r, self.highlight_until, &self.theme),
+                Ok(r) => to_line(r, self.highlight_until, self.failed_subcommand, &self.theme),
                 Err(_) => Line::from(self.command_input.value()),
             }
         };
@@ -61,10 +62,17 @@ impl RuraWidget {
     }
 
     pub fn handle_event(&mut self, event: &Event) -> bool {
-        self.command_input
+        let changed_value = self
+            .command_input
             .handle_event(event)
             .map(|change| change.value)
-            .unwrap_or(false)
+            .unwrap_or(false);
+
+        if changed_value {
+            self.failed_subcommand = None
+        }
+
+        changed_value
     }
 
     pub fn subcommand_next(&mut self) {
@@ -90,21 +98,23 @@ impl RuraWidget {
             }
         }
 
-        self.command_input.clear_completions()
+        self.command_input.clear_completions();
     }
 
     pub fn history_next(&mut self) {
         self.command_input
             .with_value(self.history.next(self.command_input.value()));
 
-        self.command_input.clear_completions()
+        self.command_input.clear_completions();
+        self.failed_subcommand = None;
     }
 
     pub fn history_prev(&mut self) {
         self.command_input
             .with_value(self.history.previous(self.command_input.value()));
 
-        self.command_input.clear_completions()
+        self.command_input.clear_completions();
+        self.failed_subcommand = None;
     }
 
     pub fn execute(&mut self, execute_type: ExecuteType) -> Result<Option<RuraCommand>> {
@@ -151,7 +161,12 @@ pub fn render_line(line: Vec<StyledGrapheme>, area: Rect, buf: &mut Buffer, y: u
     }
 }
 
-fn to_line<'a>(r: Rura, highlight_until: Option<usize>, theme: &Theme) -> Line<'a> {
+fn to_line<'a>(
+    r: Rura,
+    highlight_until: Option<usize>,
+    highlight_failed: Option<usize>,
+    theme: &Theme,
+) -> Line<'a> {
     let mut spans = vec![];
 
     for (index, parts) in r.subcommands.iter().enumerate() {
@@ -184,7 +199,13 @@ fn to_line<'a>(r: Rura, highlight_until: Option<usize>, theme: &Theme) -> Line<'
                 Part::Unquoted(_) => base_style,
                 Part::Quoted(_) => theme.cmd_quoted.patch(base_style),
             };
-            spans.push(part.content().to_string().set_style(style));
+            if let Some(failed_subcommand) = highlight_failed
+                && index == failed_subcommand
+            {
+                spans.push(part.content().to_string().set_style(style.red()));
+            } else {
+                spans.push(part.content().to_string().set_style(style));
+            }
         }
     }
 
@@ -221,6 +242,7 @@ mod tests {
                 theme: Theme::from_config(&theme_config),
                 history: History::in_mem(),
                 highlight_reset_tx,
+                failed_subcommand: None,
             }
         }
     }

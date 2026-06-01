@@ -133,6 +133,7 @@ impl App {
                 theme: Theme::from_config(&config.theme),
                 history: History::using_file(),
                 highlight_reset_tx,
+                failed_subcommand: None,
             },
             output_widget: OutputWidget::new(
                 &config.theme,
@@ -183,7 +184,8 @@ impl App {
                 if result.output.ok && !result.command.is_empty() {
                     self.rura_widget.history.push(&result.command)
                 }
-                self.output_widget.handle_command_output(result.output)
+                self.output_widget.handle_command_output(result.output);
+                self.rura_widget.failed_subcommand = result.failed_subcommand;
             }
             ResetHighlight => self.rura_widget.highlight_until = None,
             Debounced => {
@@ -789,6 +791,7 @@ fn handle_command_task(
                         output: Output::err_stdin(
                             "Failed running command, check logs".bytes().collect_vec(),
                         ),
+                        failed_subcommand: None,
                     };
                     action_tx.send(CommandCompleted(cmd_out))?;
                     error!("{}", e)
@@ -903,6 +906,7 @@ mod tests {
                     theme: Theme::from_config(&theme_config),
                     history: History::in_mem(),
                     highlight_reset_tx,
+                    failed_subcommand: None,
                 },
                 output_widget: OutputWidget::new(
                     &theme_config,
@@ -1008,6 +1012,7 @@ mod tests {
         let cmd_res = |cmd: &str, output: Output| CmdResult {
             command: cmd.into(),
             output,
+            failed_subcommand: None,
         };
 
         app.handle_action(CommandCompleted(cmd_res(

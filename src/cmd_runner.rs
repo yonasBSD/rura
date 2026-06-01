@@ -47,6 +47,7 @@ impl CmdRunner for CachedCmdRunner {
             return Ok(CmdResult {
                 command: "".into(),
                 output: Output::ok_stdin(self.stdin.clone()),
+                failed_subcommand: None,
             });
         }
 
@@ -93,6 +94,7 @@ impl CmdRunner for CachedCmdRunner {
                 return Ok(CmdResult {
                     command: commands.iter().join("|"),
                     output,
+                    failed_subcommand: Some(i),
                 });
             }
         }
@@ -116,6 +118,7 @@ impl CmdRunner for CachedCmdRunner {
         Ok(CmdResult {
             command: commands.iter().join("|"),
             output: self.cache.get(commands.len() - 1).unwrap().clone(),
+            failed_subcommand: None,
         })
     }
 }
@@ -142,6 +145,7 @@ impl CmdRunner for SimpleCmdRunner {
             return Ok(CmdResult {
                 command: "".into(),
                 output: Output::ok_stdin(self.stdin.clone()),
+                failed_subcommand: None,
             });
         }
 
@@ -159,6 +163,7 @@ impl CmdRunner for SimpleCmdRunner {
         Ok(CmdResult {
             command: commands.iter().join("|"),
             output,
+            failed_subcommand: None,
         })
     }
 }
@@ -215,6 +220,7 @@ impl Exec for SystemExec {
 pub struct CmdResult {
     pub command: String,
     pub output: Output,
+    pub failed_subcommand: Option<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
