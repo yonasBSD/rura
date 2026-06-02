@@ -1,4 +1,19 @@
-## v.1.3.0 - 2026-05-28
+## v1.4.0 - 2026-06-02
+
+### Features
+
+- Introduced cached command runner
+- Added `no_cache` option to configuration
+- Highlight failed subcommand in input field
+- Add progress indicator for long-running commands
+- Add support for horizontal page-wise scrolling
+
+### Bug Fixes
+
+- Handle tilde-prefixed paths correctly in zsh
+- Handle errors in tasks reading `stdin`
+
+## v1.3.0 - 2026-05-28
 
 ### Features
 
