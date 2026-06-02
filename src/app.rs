@@ -109,7 +109,7 @@ impl App {
                             command_rx,
                             s2,
                         )
-                            .unwrap();
+                        .unwrap();
                     });
 
                     while let Err(_) = ctx.send(vec![]) {
@@ -123,7 +123,7 @@ impl App {
                         output: Output::err_stdin(e.to_string().bytes().collect()),
                         failed_subcommand: None,
                     }))
-                        .unwrap();
+                    .unwrap();
                 }
             }
         });
@@ -143,7 +143,7 @@ impl App {
                         .expect("Sending to channel failed");
                 },
             )
-                .unwrap()
+            .unwrap()
         });
 
         Self {
@@ -1094,7 +1094,7 @@ mod tests {
 
         assert_eq!(
             *app.rura_widget.history.history(),
-            VecDeque::from(vec!["grep 'abc'".into(), "grep".into(), ])
+            VecDeque::from(vec!["grep 'abc'".into(), "grep".into(),])
         );
     }
 

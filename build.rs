@@ -18,7 +18,7 @@ fn get_git_version() -> String {
         }
     }
 
-   env!("CARGO_PKG_VERSION").to_string()
+    env!("CARGO_PKG_VERSION").to_string()
 }
 
 fn git_output(args: &[&str]) -> Option<String> {
