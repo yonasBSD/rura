@@ -3,27 +3,11 @@ use crate::rura::State::{
     Backslash, Comment, Delimiter, DoubleQuoted, DoubleQuotedBackslash, Pipe, SingleQuoted,
     Unquoted, UnquotedBackslash,
 };
-use itertools::Itertools;
 use std::{fmt, mem};
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Part {
-    Unquoted(String),
-    Quoted(String),
-}
-
-impl Part {
-    pub fn content(&self) -> &str {
-        match self {
-            Part::Unquoted(s) => s,
-            Part::Quoted(s) => s,
-        }
-    }
-}
 
 #[derive(Debug)]
 pub struct Rura {
-    pub subcommands: Vec<Vec<Part>>,
+    pub subcommands: Vec<String>,
     pub current: usize,
     pub cursor: usize,
 }
@@ -35,9 +19,8 @@ impl Rura {
         let mut sum = 0;
         let mut current_subcommand = 0;
 
-        for (index, parts) in subcommands.iter().enumerate() {
-            let part_len: usize = parts.iter().map(|p| p.content().len()).sum();
-            sum += part_len;
+        for (index, subcommand) in subcommands.iter().enumerate() {
+            sum += subcommand.len();
             if cursor <= sum {
                 current_subcommand = index;
                 break;
@@ -58,9 +41,8 @@ impl Rura {
                 if self.subcommands.is_empty() {
                     None
                 } else {
-                    let full_command = join_parts(&self.subcommands);
                     Some(RuraCommand {
-                        to_run: full_command,
+                        to_run: self.subcommands.clone(),
                         until: self.subcommands.len() - 1,
                     })
                 }
@@ -68,7 +50,12 @@ impl Rura {
             UntilCurrent | UntilCurrentLive => {
                 if !self.subcommands.is_empty() {
                     Some(RuraCommand {
-                        to_run: join_parts(&self.subcommands[0..self.current + 1]),
+                        to_run: self
+                            .subcommands
+                            .iter()
+                            .take(self.current + 1)
+                            .cloned()
+                            .collect(),
                         until: self.current,
                     })
                 } else {
@@ -80,7 +67,12 @@ impl Rura {
                     None
                 } else {
                     Some(RuraCommand {
-                        to_run: join_parts(&self.subcommands[0..self.current]),
+                        to_run: self
+                            .subcommands
+                            .iter()
+                            .take(self.current)
+                            .cloned()
+                            .collect(),
                         until: self.current - 1,
                     })
                 }
@@ -91,14 +83,13 @@ impl Rura {
     pub fn cursor_prev(&self, cycle: bool) -> Option<usize> {
         let mut sum = 0;
         let mut ends = Vec::new();
-        for (i, parts) in self.subcommands.iter().enumerate() {
-            let part_len: usize = parts.iter().map(|p| p.content().len()).sum();
+        for (i, subcommand) in self.subcommands.iter().enumerate() {
             if i == self.subcommands.len() - 1 {
-                ends.push(sum + part_len);
+                ends.push(sum + subcommand.len());
             } else {
-                ends.push(sum + part_len - 1);
+                ends.push(sum + subcommand.len() - 1);
             }
-            sum += part_len + 1;
+            sum += subcommand.len() + 1;
         }
 
         if ends.is_empty() {
@@ -126,12 +117,11 @@ impl Rura {
 
     pub fn cursor_next(&self, cycle: bool) -> Option<usize> {
         let mut sum = 0;
-        for (index, parts) in self.subcommands.iter().enumerate() {
-            let part_len: usize = parts.iter().map(|p| p.content().len()).sum();
+        for (index, subcommand) in self.subcommands.iter().enumerate() {
             let end_of_subcommand = if index == self.subcommands.len() - 1 {
-                sum + part_len
+                sum + subcommand.len()
             } else {
-                sum + part_len - 1
+                sum + subcommand.len() - 1
             };
 
             if self.cursor < end_of_subcommand {
@@ -140,43 +130,39 @@ impl Rura {
             } else if self.cursor == end_of_subcommand {
                 // At the end of current subcommand
                 if index + 1 < self.subcommands.len() {
-                    let next_sum = sum + part_len + 1;
-                    let next_parts = &self.subcommands[index + 1];
-                    let next_part_len: usize = next_parts.iter().map(|p| p.content().len()).sum();
+                    let next_sum = sum + subcommand.len() + 1;
+                    let next_subcommand = &self.subcommands[index + 1];
                     if index + 1 == self.subcommands.len() - 1 {
-                        return Some(next_sum + next_part_len);
+                        return Some(next_sum + next_subcommand.len());
                     } else {
-                        return Some(next_sum + next_part_len - 1);
+                        return Some(next_sum + next_subcommand.len() - 1);
                     }
                 } else {
                     if cycle {
                         // Wrap to first
-                        let first_parts = &self.subcommands[0];
-                        let first_part_len: usize =
-                            first_parts.iter().map(|p| p.content().len()).sum();
+                        let first_subcomman = &self.subcommands[0];
                         if self.subcommands.len() == 1 {
-                            return Some(first_part_len);
+                            return Some(first_subcomman.len());
                         } else {
-                            return Some(first_part_len - 1);
+                            return Some(first_subcomman.len() - 1);
                         }
                     } else {
                         return Some(end_of_subcommand);
                     }
                 }
-            } else if self.cursor == sum + part_len {
+            } else if self.cursor == sum + subcommand.len() {
                 // At the pipe character
                 if index + 1 < self.subcommands.len() {
-                    let next_sum = sum + part_len + 1;
-                    let next_parts = &self.subcommands[index + 1];
-                    let next_part_len: usize = next_parts.iter().map(|p| p.content().len()).sum();
+                    let next_sum = sum + subcommand.len() + 1;
+                    let next_subcommand = &self.subcommands[index + 1];
                     if index + 1 == self.subcommands.len() - 1 {
-                        return Some(next_sum + next_part_len);
+                        return Some(next_sum + next_subcommand.len());
                     } else {
-                        return Some(next_sum + next_part_len - 1);
+                        return Some(next_sum + next_subcommand.len() - 1);
                     }
                 }
             }
-            sum += part_len + 1;
+            sum += subcommand.len() + 1;
         }
         None
     }
@@ -191,202 +177,89 @@ pub enum ExecuteType {
 }
 
 // Inspired by https://github.com/tmiasko/shell-words
-fn split_command(s: &str) -> Result<Vec<Vec<Part>>, ParseError> {
+fn split_command(s: &str) -> Result<Vec<String>, ParseError> {
     let mut commands = Vec::new();
-    let mut current_command = Vec::new();
-    let mut current_part = String::new();
+    let mut command = String::new();
     let mut chars = s.chars();
     let mut state = Delimiter;
 
     loop {
         let c = chars.next();
-
+        if let Some(c) = c {
+            command.push(c);
+        }
         state = match state {
             Delimiter => match c {
                 None => break,
-                Some('\'') => {
-                    if !current_part.is_empty() {
-                        current_command.push(Part::Unquoted(mem::take(&mut current_part)));
-                    }
-                    current_part.push('\'');
-                    SingleQuoted
-                }
-                Some('\"') => {
-                    if !current_part.is_empty() {
-                        current_command.push(Part::Unquoted(mem::take(&mut current_part)));
-                    }
-                    current_part.push('\"');
-                    DoubleQuoted
-                }
-                Some('\\') => {
-                    current_part.push('\\');
-                    Backslash
-                }
-                Some('\t') | Some(' ') | Some('\n') => {
-                    current_part.push(c.unwrap());
-                    Delimiter
-                }
-                Some('#') => {
-                    current_part.push('#');
-                    Comment
-                }
+                Some('\'') => SingleQuoted,
+                Some('\"') => DoubleQuoted,
+                Some('\\') => Backslash,
+                Some('\t') | Some(' ') | Some('\n') => Delimiter,
+                Some('#') => Comment,
                 Some('|') => return Err(ParseError),
-                Some(_) => {
-                    current_part.push(c.unwrap());
-                    Unquoted
-                }
+                Some(_) => Unquoted,
             },
             Backslash => match c {
                 None => {
-                    if !current_part.is_empty() {
-                        current_command.push(Part::Unquoted(mem::take(&mut current_part)));
-                    }
-                    commands.push(mem::take(&mut current_command));
+                    commands.push(mem::replace(&mut command, String::new()));
                     break;
                 }
-                Some('\n') => {
-                    current_part.push('\n');
-                    Delimiter
-                }
-                Some(_) => {
-                    current_part.push(c.unwrap());
-                    Unquoted
-                }
+                Some('\n') => Delimiter,
+                Some(_) => Unquoted,
             },
             Unquoted => match c {
                 None => {
-                    if !current_part.is_empty() {
-                        current_command.push(Part::Unquoted(mem::take(&mut current_part)));
-                    }
-                    commands.push(mem::take(&mut current_command));
+                    commands.push(mem::replace(&mut command, String::new()));
                     break;
                 }
-                Some('\'') => {
-                    if !current_part.is_empty() {
-                        current_command.push(Part::Unquoted(mem::take(&mut current_part)));
-                    }
-                    current_part.push('\'');
-                    SingleQuoted
-                }
-                Some('\"') => {
-                    if !current_part.is_empty() {
-                        current_command.push(Part::Unquoted(mem::take(&mut current_part)));
-                    }
-                    current_part.push('\"');
-                    DoubleQuoted
-                }
-                Some('\\') => {
-                    current_part.push('\\');
-                    UnquotedBackslash
-                }
+                Some('\'') => SingleQuoted,
+                Some('\"') => DoubleQuoted,
+                Some('\\') => UnquotedBackslash,
                 Some('|') => {
-                    if !current_part.is_empty() {
-                        current_command.push(Part::Unquoted(mem::take(&mut current_part)));
-                    }
-                    commands.push(mem::take(&mut current_command));
+                    command.remove(command.len() - 1);
+                    commands.push(mem::replace(&mut command, String::new()));
                     Pipe
                 }
-                Some(_) => {
-                    current_part.push(c.unwrap());
-                    Unquoted
-                }
+                Some(_) => Unquoted,
             },
             UnquotedBackslash => match c {
                 None => {
-                    if !current_part.is_empty() {
-                        current_command.push(Part::Unquoted(mem::take(&mut current_part)));
-                    }
-                    commands.push(mem::take(&mut current_command));
+                    commands.push(mem::replace(&mut command, String::new()));
                     break;
                 }
-                Some(_) => {
-                    current_part.push(c.unwrap());
-                    Unquoted
-                }
+                Some(_) => Unquoted,
             },
             SingleQuoted => match c {
                 None => return Err(ParseError),
-                Some('\'') => {
-                    current_part.push('\'');
-                    current_command.push(Part::Quoted(mem::take(&mut current_part)));
-                    Unquoted
-                }
-                Some(_) => {
-                    current_part.push(c.unwrap());
-                    SingleQuoted
-                }
+                Some('\'') => Unquoted,
+                Some(_) => SingleQuoted,
             },
             DoubleQuoted => match c {
                 None => return Err(ParseError),
-                Some('\"') => {
-                    current_part.push('\"');
-                    current_command.push(Part::Quoted(mem::take(&mut current_part)));
-                    Unquoted
-                }
-                Some('\\') => {
-                    current_part.push('\\');
-                    DoubleQuotedBackslash
-                }
-                Some(_) => {
-                    current_part.push(c.unwrap());
-                    DoubleQuoted
-                }
+                Some('\"') => Unquoted,
+                Some('\\') => DoubleQuotedBackslash,
+                Some(_) => DoubleQuoted,
             },
             DoubleQuotedBackslash => match c {
                 None => return Err(ParseError),
-                Some('\n') => {
-                    current_part.push('\n');
-                    DoubleQuoted
-                }
-                Some('$') | Some('`') | Some('"') | Some('\\') => {
-                    current_part.push(c.unwrap());
-                    DoubleQuoted
-                }
-                Some(_) => {
-                    current_part.push(c.unwrap());
-                    DoubleQuoted
-                }
+                Some('\n') => DoubleQuoted,
+                Some('$') | Some('`') | Some('"') | Some('\\') => DoubleQuoted,
+                Some(_) => DoubleQuoted,
             },
             Comment => match c {
-                None => {
-                    if !current_part.is_empty() {
-                        current_command.push(Part::Unquoted(mem::take(&mut current_part)));
-                    }
-                    commands.push(mem::take(&mut current_command));
-                    break;
-                }
-                Some('\n') => {
-                    current_part.push('\n');
-                    Delimiter
-                }
-                Some(_) => {
-                    current_part.push(c.unwrap());
-                    Comment
-                }
+                None => break,
+                Some('\n') => Delimiter,
+                Some(_) => Comment,
             },
             Pipe => match c {
                 None => return Err(ParseError),
-                Some('\n') => {
-                    current_part.push('\n');
-                    Delimiter
-                }
-                Some(_) => {
-                    current_part.push(c.unwrap());
-                    Unquoted
-                }
+                Some('\n') => Delimiter,
+                Some(_) => Unquoted,
             },
         }
     }
 
-    if commands.iter().any(|parts| {
-        // fail if empty subcommands exist
-        parts
-            .iter()
-            .map(|part| part.content())
-            .join("")
-            .trim()
-            .is_empty()
-    }) {
+    if commands.iter().any(|c| c.trim().is_empty()) {
         Err(ParseError)
     } else {
         Ok(commands)
@@ -425,13 +298,6 @@ impl fmt::Display for ParseError {
 
 impl std::error::Error for ParseError {}
 
-fn join_parts(parts: &[Vec<Part>]) -> Vec<String> {
-    parts
-        .iter()
-        .map(|p| p.iter().map(|part| part.content()).collect::<String>())
-        .collect::<Vec<String>>()
-}
-
 #[derive(Debug, PartialEq, Eq)]
 pub struct RuraCommand {
     pub to_run: Vec<String>,
@@ -441,7 +307,7 @@ pub struct RuraCommand {
 #[cfg(test)]
 mod tests {
     use crate::rura::ExecuteType::{Full, UntilCurrent, UntilCurrentPrev};
-    use crate::rura::{Part, Rura, split_command};
+    use crate::rura::{Rura, split_command};
 
     #[test]
     fn commands() {
@@ -644,7 +510,7 @@ mod tests {
     fn test_split_command() {
         let cmd = "ls -l";
         let split = split_command(cmd).unwrap();
-        assert_eq!(split, vec![vec![Part::Unquoted(String::from("ls -l"))]]);
+        assert_eq!(split, vec![String::from("ls -l")]);
     }
 
     #[test]
@@ -654,8 +520,8 @@ mod tests {
         assert_eq!(
             split,
             vec![
-                vec![Part::Unquoted(String::from(" \t\n ls    -la    "))],
-                vec![Part::Unquoted(String::from("   grep    rw     "))]
+                String::from(" \t\n ls    -la    "),
+                String::from("   grep    rw     ")
             ]
         );
     }
@@ -664,17 +530,7 @@ mod tests {
     fn test_split_command_pipe_in_quotes() {
         let cmd = "some_cmd | jq '.. | .name' -r";
         let split = split_command(cmd).unwrap();
-        assert_eq!(
-            split,
-            vec![
-                vec![Part::Unquoted(String::from("some_cmd "))],
-                vec![
-                    Part::Unquoted(String::from(" jq ")),
-                    Part::Quoted(String::from("'.. | .name'")),
-                    Part::Unquoted(String::from(" -r")),
-                ]
-            ]
-        );
+        assert_eq!(split, vec!["some_cmd ", " jq '.. | .name' -r"]);
     }
 
     #[test]
@@ -696,14 +552,6 @@ mod tests {
     fn test_split_command_quoted() {
         let cmd = "ls \"file name\" 'other file'";
         let split = split_command(cmd).unwrap();
-        assert_eq!(
-            split,
-            vec![vec![
-                Part::Unquoted(String::from("ls ")),
-                Part::Quoted(String::from("\"file name\"")),
-                Part::Unquoted(String::from(" ")),
-                Part::Quoted(String::from("'other file'")),
-            ]]
-        );
+        assert_eq!(split, vec!["ls \"file name\" 'other file'"]);
     }
 }

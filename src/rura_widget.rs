@@ -1,6 +1,6 @@
 use crate::completable_input::CompletableInput;
 use crate::history::History;
-use crate::rura::{ExecuteType, Part, Rura, RuraCommand};
+use crate::rura::{ExecuteType, Rura, RuraCommand};
 use crate::theme::Theme;
 use anyhow::Result;
 use crossterm::event::Event;
@@ -169,7 +169,7 @@ fn to_line<'a>(
 ) -> Line<'a> {
     let mut spans = vec![];
 
-    for (index, parts) in r.subcommands.iter().enumerate() {
+    for (index, subcommand) in r.subcommands.iter().enumerate() {
         let is_current = index == r.current;
         let is_highlighted = highlight_until.map_or(false, |until| index <= until);
 
@@ -194,22 +194,59 @@ fn to_line<'a>(
             theme.cmd_regular
         };
 
-        for part in parts {
-            let style = match part {
-                Part::Unquoted(_) => base_style,
-                Part::Quoted(_) => theme.cmd_quoted.patch(base_style),
+        let parts = split_quoted_parts(subcommand);
+
+        for (part, is_quoted) in parts {
+            let style = if is_quoted {
+                theme.cmd_quoted.patch(base_style)
+            } else {
+                base_style
             };
+
             if let Some(failed_subcommand) = highlight_failed
                 && index == failed_subcommand
             {
-                spans.push(part.content().to_string().set_style(style.red()));
+                spans.push(part.set_style(style.red()));
             } else {
-                spans.push(part.content().to_string().set_style(style));
+                spans.push(part.set_style(style));
             }
         }
     }
 
     Line::from_iter(spans)
+}
+
+fn split_quoted_parts(s: &str) -> Vec<(String, bool)> {
+    let mut parts = vec![];
+    let mut current = String::new();
+    let mut in_quotes = false;
+    let mut quote_char = ' ';
+    let mut chars = s.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        if !in_quotes && (c == '"' || c == '\'') {
+            if !current.is_empty() {
+                parts.push((current.clone(), false));
+                current.clear();
+            }
+            in_quotes = true;
+            quote_char = c;
+            current.push(c);
+        } else if in_quotes && c == quote_char {
+            current.push(c);
+            parts.push((current.clone(), true));
+            current.clear();
+            in_quotes = false;
+        } else {
+            current.push(c);
+        }
+    }
+
+    if !current.is_empty() {
+        parts.push((current, in_quotes));
+    }
+
+    parts
 }
 
 #[cfg(test)]
