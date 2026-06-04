@@ -22,6 +22,7 @@ pub struct RuraWidget {
     pub history: History,
     pub highlight_reset_tx: Sender<()>,
     pub failed_subcommand: Option<usize>,
+    pub copied: Option<String>,
 }
 
 impl Widget for &RuraWidget {
@@ -99,6 +100,43 @@ impl RuraWidget {
         }
 
         self.command_input.clear_completions();
+    }
+
+    pub fn copy_current(&mut self) {
+        if let Ok(r) = Rura::new(
+            self.command_input.value(),
+            self.command_input.visual_cursor(),
+        ) {
+            self.copied = r.current_subcommand();
+        }
+    }
+
+    pub fn cut_current(&mut self) {
+        if let Ok(mut r) = Rura::new(
+            self.command_input.value(),
+            self.command_input.visual_cursor(),
+        ) {
+            if let Some((removed, cursor)) = r.delete_current() {
+                self.copied = Some(removed);
+                self.command_input
+                    .with_value(r.subcommands.iter().join("|"));
+                self.command_input.handle(InputRequest::SetCursor(cursor));
+            }
+        }
+    }
+
+    pub fn paste_after_current(&mut self) {
+        if let Ok(mut r) = Rura::new(
+            self.command_input.value(),
+            self.command_input.visual_cursor(),
+        ) {
+            if let Some(yanked) = self.copied.clone() {
+                let cursor = r.insert_after(&yanked);
+                self.command_input
+                    .with_value(r.subcommands.iter().join("|"));
+                self.command_input.handle(InputRequest::SetCursor(cursor));
+            }
+        }
     }
 
     pub fn history_next(&mut self) {
@@ -280,6 +318,7 @@ mod tests {
                 history: History::in_mem(),
                 highlight_reset_tx,
                 failed_subcommand: None,
+                copied: None,
             }
         }
     }

@@ -165,6 +165,7 @@ impl App {
                 history: History::using_file(),
                 highlight_reset_tx,
                 failed_subcommand: None,
+                copied: None,
             },
             output_widget: OutputWidget::new(
                 &config.theme,
@@ -512,6 +513,15 @@ impl App {
                     self.input_mode = InputMode::LiveFull;
                 }
             },
+            (Char('x'), KeyModifiers::ALT) => {
+                self.rura_widget.cut_current();
+            }
+            (Char('c'), KeyModifiers::ALT) => {
+                self.rura_widget.copy_current();
+            }
+            (Char('v'), KeyModifiers::ALT) => {
+                self.rura_widget.paste_after_current();
+            }
             _ => match to_ui_command(&self.key_bindings, code, mods) {
                 Some(ui_cmd) => match ui_cmd {
                     UiCmd::Quit => {
@@ -968,6 +978,7 @@ mod tests {
                     history: History::in_mem(),
                     highlight_reset_tx,
                     failed_subcommand: None,
+                    copied: None,
                 },
                 output_widget: OutputWidget::new(
                     &theme_config,

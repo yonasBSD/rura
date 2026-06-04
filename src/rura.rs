@@ -158,6 +158,56 @@ impl Rura {
         }
         None
     }
+
+    pub fn current_subcommand(&self) -> Option<String> {
+        self.subcommands.get(self.current).map(|s| s.to_owned())
+    }
+
+    pub fn delete_current(&mut self) -> Option<(String, usize)> {
+        if self.subcommands.is_empty() {
+            None
+        } else {
+            let removed = self.subcommands.remove(self.current);
+            self.current = self.current.saturating_sub(1);
+
+            if let Some(new_cursor) = self.cursor_ends().get(self.current) {
+                Some((removed, *new_cursor))
+            } else {
+                Some((removed, 0))
+            }
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn insert_before(&mut self, insert: &str) {
+        self.subcommands.insert(self.current, insert.to_owned());
+    }
+
+    pub fn insert_after(&mut self, insert: &str) -> usize {
+        let insert_index = (self.current + 1).min(self.subcommands.len());
+        self.subcommands.insert(insert_index, insert.to_owned());
+
+        if let Some(cursor) = self.cursor_ends().get(self.current + 1) {
+            *cursor
+        } else {
+            // inserted into empty input
+            self.subcommands.first().map(|s| s.len()).unwrap_or(0)
+        }
+    }
+
+    fn cursor_ends(&self) -> Vec<usize> {
+        let mut ends = Vec::new();
+        let mut sum = 0;
+        for (i, subcommand) in self.subcommands.iter().enumerate() {
+            if i == 0 {
+                sum += subcommand.len() - 1;
+            } else {
+                sum += subcommand.len() + 1;
+            }
+            ends.push(sum);
+        }
+        ends
+    }
 }
 
 pub enum ExecuteType {
@@ -516,6 +566,84 @@ mod tests {
         assert_eq!(rura.cursor_prev(false), Some(2));
         let rura = Rura::new("aaa|bbbb|ccccc", 2).unwrap();
         assert_eq!(rura.cursor_prev(false), Some(2));
+    }
+
+    #[test]
+    fn test_delete_current() {
+        let mut rura = Rura::new("", 0).unwrap();
+        assert_eq!(rura.delete_current(), None);
+
+        let mut rura = Rura::new("   ", 0).unwrap();
+        assert_eq!(rura.delete_current(), None);
+
+        let mut rura = Rura::new("aaa", 0).unwrap();
+        assert_eq!(rura.delete_current(), Some(("aaa".into(), 0)));
+
+        let mut rura = Rura::new("aaa|bbbb|ccccc", 0).unwrap();
+        assert_eq!(rura.delete_current(), Some(("aaa".into(), 3))); // cursor at end of bbbb
+        assert_eq!(rura.subcommands, vec!["bbbb", "ccccc"]);
+
+        let mut rura = Rura::new("aaa|bbbb|ccccc", 3).unwrap();
+        assert_eq!(rura.delete_current(), Some(("aaa".into(), 3))); // cursor at end of bbbb
+        assert_eq!(rura.subcommands, vec!["bbbb", "ccccc"]);
+
+        let mut rura = Rura::new("aaa|bbbb|ccccc", 4).unwrap();
+        assert_eq!(rura.delete_current(), Some(("bbbb".into(), 2))); // cursor at end of ccccc
+        assert_eq!(rura.subcommands, vec!["aaa", "ccccc"]);
+
+        let mut rura = Rura::new("aaa|bbbb|ccccc", 14).unwrap();
+        assert_eq!(rura.delete_current(), Some(("ccccc".into(), 7)));
+        assert_eq!(rura.subcommands, vec!["aaa", "bbbb"]);
+    }
+
+    #[test]
+    fn test_insert_before() {
+        let mut rura = Rura::new("", 0).unwrap();
+        rura.insert_before("aaa");
+        assert_eq!(rura.subcommands, vec!["aaa"]);
+
+        let mut rura = Rura::new("aaa", 0).unwrap();
+        rura.insert_before("bbbb");
+        assert_eq!(rura.subcommands, vec!["bbbb", "aaa"]);
+
+        let mut rura = Rura::new("aaa|bbbb", 5).unwrap();
+        rura.insert_before("ccccc");
+        assert_eq!(rura.subcommands, vec!["aaa", "ccccc", "bbbb"]);
+    }
+
+    #[test]
+    fn test_insert_after() {
+        let mut rura = Rura::new("", 0).unwrap();
+        let cursor = rura.insert_after("aaa");
+        assert_eq!(rura.subcommands, vec!["aaa"]);
+        assert_eq!(cursor, 3);
+
+        let mut rura = Rura::new("aaa", 0).unwrap();
+        let cursor = rura.insert_after("bbbb");
+        assert_eq!(rura.subcommands, vec!["aaa", "bbbb"]);
+        assert_eq!(cursor, 7);
+
+        let mut rura = Rura::new("aaa|bbbb", 0).unwrap();
+        let cursor = rura.insert_after("ccccc");
+        assert_eq!(cursor, 8);
+        assert_eq!(rura.subcommands, vec!["aaa", "ccccc", "bbbb"]);
+
+        let mut rura = Rura::new("aaa|bbbb", 5).unwrap();
+        let cursor = rura.insert_after("ccccc");
+        assert_eq!(cursor, 13);
+        assert_eq!(rura.subcommands, vec!["aaa", "bbbb", "ccccc"]);
+    }
+
+    #[test]
+    fn test_ends() {
+        let rura = Rura::new("", 0).unwrap();
+        assert_eq!(rura.cursor_ends(), vec![]);
+
+        let rura = Rura::new("    ", 0).unwrap();
+        assert_eq!(rura.cursor_ends(), vec![]);
+
+        let rura = Rura::new("aaa|bbbb|ccccc", 0).unwrap();
+        assert_eq!(rura.cursor_ends(), vec![2, 7, 13]);
     }
 
     use super::*;
