@@ -9,7 +9,7 @@ use crate::debouncer::debouncer_task;
 use crate::help_widget::HelpWidget;
 use crate::history::History;
 use crate::output_widget::{ErrorDisplayMode, ErrorPanePlacement, OutputWidget};
-use crate::rura::ExecuteType;
+use crate::rura::{ExecuteType, RuraCommand};
 use crate::rura_widget::RuraWidget;
 use crate::save_to_file_widget::SaveToFileWidget;
 use crate::search_widget::SearchWidget;
@@ -50,7 +50,7 @@ pub struct App {
     save_command_widget: SaveToFileWidget,
     shell: String,
     action_rx: Receiver<Action>,
-    command_tx: Sender<Vec<String>>,
+    command_tx: Sender<RuraCommand>,
     key_bindings: KeyBindings,
     command_line_placement: CommandLinePlacement,
     input_mode: InputMode,
@@ -91,7 +91,7 @@ impl App {
         debug!("Shell: {:?}", shell);
 
         let (action_tx, action_rx) = std::sync::mpsc::channel::<Action>();
-        let (command_tx, command_rx) = std::sync::mpsc::channel::<Vec<String>>();
+        let (command_tx, command_rx) = std::sync::mpsc::channel::<RuraCommand>();
         let (highlight_reset_tx, highlight_reset_rx) = std::sync::mpsc::channel::<()>();
         let (debouncer_tx, debouncer_rx) = std::sync::mpsc::channel::<()>();
 
@@ -121,17 +121,19 @@ impl App {
                         .unwrap();
                     });
 
-                    while let Err(_) = ctx.send(vec![]) {
+                    while let Err(_) = ctx.send(RuraCommand::empty()) {
                         thread::sleep(Duration::from_millis(100));
                         debug!("Waiting for command_rx to accept commands");
                     }
                 }
                 Err(e) => {
-                    s3.send(CommandCompleted(CmdResult {
-                        command: "".into(),
-                        output: Output::err_stdin(e.to_string().bytes().collect()),
-                        failed_subcommand: None,
-                    }))
+                    s3.send(CommandCompleted(
+                        RuraCommand::empty(),
+                        CmdResult {
+                            output: Output::err_stdin(e.to_string().bytes().collect()),
+                            failed_subcommand: None,
+                        },
+                    ))
                     .unwrap();
                 }
             }
@@ -210,15 +212,15 @@ impl App {
     fn handle_action(&mut self, action: Action) {
         match action {
             UserInput(event) => self.handle_event(&event),
-            CommandCompleted(result) => {
-                if !result.command.is_empty() {
+            CommandCompleted(command, result) => {
+                if !command.is_empty() {
                     if matches!(self.input_mode, InputMode::Normal) {
                         // in normal mode save all commands to history
-                        self.rura_widget.history.push(&result.command)
+                        self.rura_widget.history.push(&command.to_string())
                     } else {
                         // in live mode only save commands that were successfully executed
                         if result.output.ok {
-                            self.rura_widget.history.push(&result.command)
+                            self.rura_widget.history.push(&command.to_string())
                         }
                     }
                 }
@@ -524,7 +526,7 @@ impl App {
                     UiCmd::ExecuteUntilCurrent => self.handle_execute(ExecuteType::UntilCurrent),
                     UiCmd::ExecuteUntilPrev => self.handle_execute(ExecuteType::UntilCurrentPrev),
                     UiCmd::ResetInput => {
-                        self.command_tx.send(vec![]).unwrap();
+                        self.command_tx.send(RuraCommand::empty()).unwrap();
                     }
                     UiCmd::SubcommandNext => {
                         self.rura_widget.subcommand_next();
@@ -617,8 +619,8 @@ impl App {
 
     fn handle_execute(&mut self, kind: ExecuteType) {
         match self.rura_widget.execute(kind) {
-            Ok(Some(c)) => self.command_tx.send(c.to_run).unwrap(),
-            Ok(None) => self.command_tx.send(vec![]).unwrap(),
+            Ok(Some(c)) => self.command_tx.send(c).unwrap(),
+            Ok(None) => self.command_tx.send(RuraCommand::empty()).unwrap(),
             Err(_) => {}
         }
     }
@@ -828,27 +830,26 @@ impl App {
 
 fn handle_command_task(
     mut cmd_runner: Box<dyn CmdRunner>,
-    command_rx: Receiver<Vec<String>>,
+    command_rx: Receiver<RuraCommand>,
     action_tx: Sender<Action>,
 ) -> Result<()> {
     loop {
         if let Ok(command) = command_rx.recv() {
             action_tx.send(StartProgress(SystemTime::now()))?;
 
-            match cmd_runner.run(command) {
+            match cmd_runner.run(command.clone()) {
                 Ok(result) => {
-                    let _ = action_tx.send(CommandCompleted(result));
+                    let _ = action_tx.send(CommandCompleted(command, result));
                 }
                 Err(e) => {
                     // todo use dedicated status widget for such errors?
                     let cmd_out = CmdResult {
-                        command: "".into(),
                         output: Output::err_stdin(
                             "Failed running command, check logs".bytes().collect_vec(),
                         ),
                         failed_subcommand: None,
                     };
-                    action_tx.send(CommandCompleted(cmd_out))?;
+                    action_tx.send(CommandCompleted(command, cmd_out))?;
                     error!("{}", e)
                 }
             }
@@ -909,7 +910,7 @@ fn reset_highlight_task(rx: Receiver<()>, tx: Sender<Action>, duration_ms: u64) 
 
 enum Action {
     UserInput(Event),
-    CommandCompleted(CmdResult),
+    CommandCompleted(RuraCommand, CmdResult),
     ResetHighlight,
     Debounced,
     StartProgress(SystemTime),
@@ -953,7 +954,7 @@ mod tests {
     impl Default for App {
         fn default() -> Self {
             let (_, action_rx) = std::sync::mpsc::channel::<Action>();
-            let (command_tx, _) = std::sync::mpsc::channel::<Vec<String>>();
+            let (command_tx, _) = std::sync::mpsc::channel::<RuraCommand>();
             let (highlight_reset_tx, _) = std::sync::mpsc::channel::<()>();
             let (debouncer_tx, _) = std::sync::mpsc::channel::<()>();
 
@@ -1072,36 +1073,35 @@ mod tests {
         let mut app = App::default();
         app.input_mode = InputMode::LiveFull;
 
-        let cmd_res = |cmd: &str, output: Output| CmdResult {
-            command: cmd.into(),
+        let cmd_res = |output: Output| CmdResult {
             output,
             failed_subcommand: None,
         };
 
-        app.handle_action(CommandCompleted(cmd_res(
-            "g",
-            Output::err_command_str("g", "", None),
-        )));
-        app.handle_action(CommandCompleted(cmd_res(
-            "gr",
-            Output::err_command_str("gr", "", None),
-        )));
-        app.handle_action(CommandCompleted(cmd_res(
-            "gre",
-            Output::err_command_str("gre", "", None),
-        )));
-        app.handle_action(CommandCompleted(cmd_res(
-            "grep",
-            Output::ok_command_str("grep", ""),
-        )));
-        app.handle_action(CommandCompleted(cmd_res(
-            "grep 'abc'",
-            Output::ok_command_str("grep 'abc'", ""),
-        )));
-        app.handle_action(CommandCompleted(cmd_res(
-            "gp 'abc'",
-            Output::err_command_str("gp 'abc'", "", None),
-        )));
+        app.handle_action(CommandCompleted(
+            "g".into(),
+            cmd_res(Output::err_command_str("g", "", None)),
+        ));
+        app.handle_action(CommandCompleted(
+            "gr".into(),
+            cmd_res(Output::err_command_str("gr", "", None)),
+        ));
+        app.handle_action(CommandCompleted(
+            "gre".into(),
+            cmd_res(Output::err_command_str("gre", "", None)),
+        ));
+        app.handle_action(CommandCompleted(
+            "grep".into(),
+            cmd_res(Output::ok_command_str("grep", "")),
+        ));
+        app.handle_action(CommandCompleted(
+            "grep 'abc'".into(),
+            cmd_res(Output::ok_command_str("grep 'abc'", "")),
+        ));
+        app.handle_action(CommandCompleted(
+            "gp 'abc'".into(),
+            cmd_res(Output::err_command_str("gp 'abc'", "", None)),
+        ));
 
         assert_eq!(
             *app.rura_widget.history.history(),
@@ -1113,20 +1113,19 @@ mod tests {
     fn saving_to_history_all_outputs_in_normal_mode() {
         let mut app = App::default();
 
-        let cmd_res = |cmd: &str, output: Output| CmdResult {
-            command: cmd.into(),
+        let cmd_res = |output: Output| CmdResult {
             output,
             failed_subcommand: None,
         };
 
-        app.handle_action(CommandCompleted(cmd_res(
-            "g",
-            Output::err_command_str("g", "", None),
-        )));
-        app.handle_action(CommandCompleted(cmd_res(
-            "grep",
-            Output::ok_command_str("grep", ""),
-        )));
+        app.handle_action(CommandCompleted(
+            "g".into(),
+            cmd_res(Output::err_command_str("g", "", None)),
+        ));
+        app.handle_action(CommandCompleted(
+            "grep".into(),
+            cmd_res(Output::ok_command_str("grep", "")),
+        ));
 
         assert_eq!(
             *app.rura_widget.history.history(),

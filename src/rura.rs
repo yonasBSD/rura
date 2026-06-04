@@ -3,6 +3,7 @@ use crate::rura::State::{
     Backslash, Comment, Delimiter, DoubleQuoted, DoubleQuotedBackslash, Pipe, SingleQuoted,
     Unquoted, UnquotedBackslash,
 };
+use itertools::Itertools;
 use std::{fmt, mem};
 
 #[derive(Debug)]
@@ -43,7 +44,6 @@ impl Rura {
                 } else {
                     Some(RuraCommand {
                         to_run: self.subcommands.clone(),
-                        until: self.subcommands.len() - 1,
                     })
                 }
             }
@@ -56,7 +56,6 @@ impl Rura {
                             .take(self.current + 1)
                             .cloned()
                             .collect(),
-                        until: self.current,
                     })
                 } else {
                     None
@@ -73,7 +72,6 @@ impl Rura {
                             .take(self.current)
                             .cloned()
                             .collect(),
-                        until: self.current - 1,
                     })
                 }
             }
@@ -298,10 +296,45 @@ impl fmt::Display for ParseError {
 
 impl std::error::Error for ParseError {}
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct RuraCommand {
-    pub to_run: Vec<String>,
-    pub until: usize,
+    to_run: Vec<String>,
+}
+
+impl RuraCommand {
+    pub fn empty() -> Self {
+        Self { to_run: vec![] }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.to_run.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.to_run.len()
+    }
+
+    pub fn to_string(&self) -> String {
+        self.to_run.join("|")
+    }
+
+    pub fn trimmed(&self) -> Vec<String> {
+        self.to_run.iter().map(|s| s.trim().into()).collect_vec()
+    }
+}
+
+impl From<Vec<String>> for RuraCommand {
+    fn from(to_run: Vec<String>) -> Self {
+        Self { to_run }
+    }
+}
+
+impl From<&str> for RuraCommand {
+    fn from(to_run: &str) -> Self {
+        Self {
+            to_run: vec![to_run.into()],
+        }
+    }
 }
 
 #[cfg(test)]
@@ -316,15 +349,13 @@ mod tests {
             rura.command(&Full),
             Some(RuraCommand {
                 to_run: vec!["a".into(), "b".into(), "c".into()],
-                until: 2
-            })
+            },)
         );
         assert_eq!(
             rura.command(&UntilCurrent),
             Some(RuraCommand {
                 to_run: vec!["a".into()],
-                until: 0
-            })
+            },)
         );
         assert_eq!(rura.command(&UntilCurrentPrev), None);
 
@@ -333,15 +364,13 @@ mod tests {
             rura.command(&Full),
             Some(RuraCommand {
                 to_run: vec!["a".into(), "b".into(), "c".into()],
-                until: 2
-            })
+            },)
         );
         assert_eq!(
             rura.command(&UntilCurrent),
             Some(RuraCommand {
                 to_run: vec!["a".into()],
-                until: 0
-            })
+            },)
         );
         assert_eq!(rura.command(&UntilCurrentPrev), None);
 
@@ -350,22 +379,19 @@ mod tests {
             rura.command(&Full),
             Some(RuraCommand {
                 to_run: vec!["a".into(), "b".into(), "c".into()],
-                until: 2
-            })
+            },)
         );
         assert_eq!(
             rura.command(&UntilCurrent),
             Some(RuraCommand {
                 to_run: vec!["a".into(), "b".into()],
-                until: 1
-            })
+            },)
         );
         assert_eq!(
             rura.command(&UntilCurrentPrev),
             Some(RuraCommand {
                 to_run: vec!["a".into()],
-                until: 0
-            })
+            },)
         );
 
         let rura = Rura::new("a|b|c", 3).unwrap();
@@ -373,22 +399,19 @@ mod tests {
             rura.command(&Full),
             Some(RuraCommand {
                 to_run: vec!["a".into(), "b".into(), "c".into()],
-                until: 2
-            })
+            },)
         );
         assert_eq!(
             rura.command(&UntilCurrent),
             Some(RuraCommand {
                 to_run: vec!["a".into(), "b".into()],
-                until: 1
-            })
+            },)
         );
         assert_eq!(
             rura.command(&UntilCurrentPrev),
             Some(RuraCommand {
                 to_run: vec!["a".into()],
-                until: 0
-            })
+            },)
         );
 
         let rura = Rura::new("a|b|c", 4).unwrap();
@@ -396,22 +419,19 @@ mod tests {
             rura.command(&Full),
             Some(RuraCommand {
                 to_run: vec!["a".into(), "b".into(), "c".into()],
-                until: 2
-            })
+            },)
         );
         assert_eq!(
             rura.command(&UntilCurrent),
             Some(RuraCommand {
                 to_run: vec!["a".into(), "b".into(), "c".into()],
-                until: 2
-            })
+            },)
         );
         assert_eq!(
             rura.command(&UntilCurrentPrev),
             Some(RuraCommand {
                 to_run: vec!["a".into(), "b".into()],
-                until: 1
-            })
+            },)
         );
     }
 

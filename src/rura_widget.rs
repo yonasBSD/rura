@@ -132,7 +132,7 @@ impl RuraWidget {
                         execute_type,
                         ExecuteType::FullLive | ExecuteType::UntilCurrentLive
                     ) {
-                        self.highlight_until = Some(command.until);
+                        self.highlight_until = Some(command.len() - 1);
                         let _ = self.highlight_reset_tx.send(());
                     }
                     Ok(Some(command))
