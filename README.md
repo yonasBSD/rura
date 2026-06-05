@@ -162,6 +162,7 @@ The configuration path is determined as follows:
 3. Default path:
     - **Linux**: `~/.config/rura/config.toml`
     - **macOS**: `~/Library/Application Support/rura/config.toml`
+    - **Windows**: `%APPDATA%\rura\config.toml`
 
 ### General Options
 
@@ -221,9 +222,10 @@ fg = "magenta"
 Rura maintains a persistent command history. The history file is located at:
 - **Linux**: `~/.local/share/rura/history.txt`
 - **macOS**: `~/Library/Application Support/rura/history.txt`
+- **Windows**: `%APPDATA%\rura\history.txt`
 
 ### Logs
 Application logs are useful for troubleshooting. They are stored at:
 - **Linux**: `~/.cache/rura/logs.txt`
 - **macOS**: `~/Library/Caches/rura/logs.txt`
-- 
+- **Windows**: `%LOCALAPPDATA%\rura\logs.txt`
