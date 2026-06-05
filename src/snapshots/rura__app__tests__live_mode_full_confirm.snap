@@ -15,7 +15,7 @@ expression: terminal.backend()
 "                                                                                                    "
 "                    ┌ Confirm entering LIVE mode ──────────────────────────────┐                    "
 "                    │                                                          │                    "
-"                    │            Warning: This might be dangerous!             │                    "
+"                    │            WARNING: THIS MIGHT BE DANGEROUS!             │                    "
 "                    │                                                          │                    "
 "                    │   Commands will be executed automatically as you type.   │                    "
 "                    │                                                          │                    "

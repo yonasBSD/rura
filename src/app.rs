@@ -58,6 +58,7 @@ pub struct App {
     active_mode: ActiveMode,
     active_modal: ActiveModal,
     in_progress: Option<SystemTime>,
+    theme: Theme,
     exit: bool,
 }
 
@@ -197,6 +198,7 @@ impl App {
             active_mode: ActiveMode::default(),
             active_modal: ActiveModal::default(),
             in_progress: None,
+            theme: Theme::from_config(&config.theme),
             exit: false,
         }
     }
@@ -789,9 +791,10 @@ impl App {
     fn render_live_confirm(&self, frame: &mut Frame) {
         let body = Text::from(vec![
             Line::from("").centered(),
-            Line::from("   Warning: This might be dangerous!   ")
+            Line::from("   WARNING: THIS MIGHT BE DANGEROUS!   ")
                 .centered()
-                .bold(),
+                .yellow()
+                .reversed(),
             Line::from("").centered(),
             Line::from("   Commands will be executed automatically as you type.   ").centered(),
             Line::from("").centered(),
@@ -800,7 +803,7 @@ impl App {
         ]);
         let popup = Popup::new(body)
             .title(" Confirm entering LIVE mode ")
-            .style(Style::new().white().on_yellow());
+            .style(self.theme.popup);
         frame.render_widget(popup, frame.area());
     }
 
@@ -1009,6 +1012,7 @@ mod tests {
                 input_mode: InputMode::Normal,
                 active_mode: ActiveMode::default(),
                 active_modal: ActiveModal::default(),
+                theme: Theme::from_config(&theme_config),
                 in_progress: None,
             }
         }
