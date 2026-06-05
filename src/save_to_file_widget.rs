@@ -1,4 +1,5 @@
 use crate::completable_input::CompletableInput;
+use crate::theme::Theme;
 use cfg_if::cfg_if;
 use itertools::Itertools;
 use log::debug;
@@ -6,6 +7,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Constraint::Length;
 use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
 use ratatui::prelude::{Line, Stylize, Widget};
+use ratatui::style::Styled;
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -15,15 +17,17 @@ use std::path::PathBuf;
 
 pub struct SaveToFileWidget {
     pub title: String,
+    pub theme: Theme,
     pub file_path_input: CompletableInput,
     pub error_message: Option<String>,
     pub cursor: (u16, u16),
 }
 
 impl SaveToFileWidget {
-    pub fn new(title: String, shell: String) -> Self {
+    pub fn new(title: String, shell: String, theme: Theme) -> Self {
         Self {
             title,
+            theme,
             file_path_input: CompletableInput::file_only("", &shell),
             error_message: None,
             cursor: (0, 0),
@@ -108,8 +112,7 @@ impl Widget for &mut SaveToFileWidget {
         Block::default()
             .borders(Borders::ALL)
             .title(self.title.clone())
-            .white()
-            .on_blue()
+            .set_style(self.theme.popup)
             .render(centered_area, buf);
 
         let path_input_area = centered_inner_area.inner(Margin::new(1, 1));

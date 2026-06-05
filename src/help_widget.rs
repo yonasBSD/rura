@@ -1,18 +1,19 @@
 use crate::config::KeyBindingsConfig;
+use crate::theme::Theme;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::prelude::Widget;
-use ratatui::style::Style;
 use ratatui::text::{Line, Text};
 use tui_popup::Popup;
 
 pub struct HelpWidget {
     kb_config: KeyBindingsConfig,
+    theme: Theme,
 }
 
 impl HelpWidget {
-    pub fn new(kb_config: KeyBindingsConfig) -> Self {
-        Self { kb_config }
+    pub fn new(kb_config: KeyBindingsConfig, theme: Theme) -> Self {
+        Self { kb_config, theme }
     }
 }
 
@@ -58,7 +59,7 @@ impl Widget for &HelpWidget {
 
         Popup::new(lines)
             .title(" Keys ")
-            .style(Style::new().white().on_blue())
+            .style(self.theme.popup)
             .render(area, buf);
     }
 }

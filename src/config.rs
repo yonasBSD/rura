@@ -54,6 +54,7 @@ pub struct ThemeConfig {
     pub output_highlight: StyleConfig,
     pub output_highlight_current: StyleConfig,
     pub line_nums: StyleConfig,
+    pub popup: StyleConfig,
 }
 
 impl Default for ThemeConfig {
@@ -70,6 +71,7 @@ impl Default for ThemeConfig {
             output_highlight: StyleConfig::fg_bg("white", "magenta"),
             output_highlight_current: StyleConfig::fg_bg("black", "yellow"),
             line_nums: StyleConfig::fg("magenta"),
+            popup: StyleConfig::fg_bg("white", "blue"),
         }
     }
 }

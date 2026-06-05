@@ -179,10 +179,12 @@ impl App {
             save_output_widget: SaveToFileWidget::new(
                 " Save output to file ".to_string(),
                 shell.clone(),
+                Theme::from_config(&config.theme),
             ),
             save_command_widget: SaveToFileWidget::new(
                 " Save command to file ".to_string(),
                 shell.clone(),
+                Theme::from_config(&config.theme),
             ),
             shell,
             action_rx,
@@ -190,7 +192,7 @@ impl App {
             debouncer_tx,
             key_bindings: KeyBindings::from_config(&config.keybindings),
             command_line_placement: config.command_line_placement,
-            help_widget: HelpWidget::new(config.keybindings),
+            help_widget: HelpWidget::new(config.keybindings, Theme::from_config(&config.theme)),
             input_mode: InputMode::Normal,
             active_mode: ActiveMode::default(),
             active_modal: ActiveModal::default(),
@@ -988,10 +990,12 @@ mod tests {
                 save_output_widget: SaveToFileWidget::new(
                     " Save output to file ".into(),
                     "".into(),
+                    Theme::from_config(&theme_config),
                 ),
                 save_command_widget: SaveToFileWidget::new(
                     " Save command to file ".into(),
                     "".into(),
+                    Theme::from_config(&theme_config),
                 ),
                 search_widget: SearchWidget::default(),
                 shell: "sh".into(),
@@ -1001,7 +1005,7 @@ mod tests {
                 exit: false,
                 key_bindings: KeyBindings::from_config(&kb_config),
                 command_line_placement: CommandLinePlacement::Bottom,
-                help_widget: HelpWidget::new(kb_config),
+                help_widget: HelpWidget::new(kb_config, Theme::from_config(&theme_config)),
                 input_mode: InputMode::Normal,
                 active_mode: ActiveMode::default(),
                 active_modal: ActiveModal::default(),

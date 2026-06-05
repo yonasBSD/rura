@@ -18,6 +18,8 @@ pub struct Theme {
     pub output_highlight_current: Style,
 
     pub line_nums: Style,
+
+    pub popup: Style,
 }
 
 impl Theme {
@@ -34,6 +36,7 @@ impl Theme {
             output_highlight: style_from_config(&config.output_highlight),
             output_highlight_current: style_from_config(&config.output_highlight_current),
             line_nums: style_from_config(&config.line_nums),
+            popup: style_from_config(&config.popup),
         }
     }
 }
