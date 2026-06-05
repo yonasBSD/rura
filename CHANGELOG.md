@@ -1,3 +1,13 @@
+## v1.5.0 - 2026-06-05
+
+### Features
+
+- Added Windows support for running commands
+- Added subcommand editing capabilities (copy, cut, paste)
+- *(ui)* Added theming support for popup widgets
+- *(ui)* Added command formatting
+- *(ui)* Added scroll support to help popup
+
 ## v1.4.0 - 2026-06-02
 
 ### Features
