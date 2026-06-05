@@ -8,10 +8,15 @@ Rura transforms the tedious "edit, up-arrow, rerun" shell cycle into a fluid, in
 
 - **Partial Pipeline Execution**: Execute only up to the current subcommand to debug complex pipes.
 - **Context-aware Completion**: Tab-complete commands and file paths using your system's bash, zsh, or fish tools.
-- **Custom Shell Support**: Specify which shell to use for command execution and completions.
+- **Custom Shell Support**: Specify which shell to use for command execution and completions (supports `sh`, `bash`, `zsh`, `fish` on Unix and `powershell` on Windows).
 - **Live Execution Modes**: Real-time feedback as you type, with optional "Live Until Cursor" or "Live Full" modes.
 - **Search**: Search and highlight text within the output pane with regex support.
 - **Syntax Highlighting**: Visual feedback for subcommand boundaries, quotes, and pipes.
+- **Error Highlighting**: Highlights the failed subcommand in the input field.
+- **Command Caching**: Automatically caches output of subcommands to speed up iteration.
+- **Command Formatting**: Automatically format your command pipeline for better readability with `Alt+O`.
+- **Subcommand Editing**: Quick copy, cut, and paste of subcommands with `Alt+C`, `Alt+X`, and `Alt+V`.
+- **Progress Indicator**: Visual indicator for long-running commands.
 - **Persistent History**: Quickly access and reuse previous commands.
 - **Save to File**: Save current output or command to a file.
 - **Line Wrapping**: Toggle whether long output lines wrap to fit the view.
@@ -97,7 +102,7 @@ rura --last
 - `-C, --config <FILE>`: Path to a custom TOML configuration file.
 - `-l, --last`: Print the last command from history and exit.
 - `--no-cache`: Disable caching of command output.
-- `-s, --shell <SHELL>`: Specify the shell to use for execution and completions (e.g., `bash`, `zsh`, `fish`).
+- `-s, --shell <SHELL>`: Specify the shell to use for execution and completions (e.g., `bash`, `zsh`, `fish`). Defaults to `sh` on Unix and `powershell` on Windows.
 - `-V, --version`: Print version information.
 
 ## Key Bindings
@@ -132,6 +137,10 @@ rura --last
 - **Shift + Tab**: Trigger backward command or file completion.
 - **Alt + Right**: Move cursor to the next subcommand.
 - **Alt + Left**: Move cursor to the previous subcommand.
+- **Alt + o**: Format the command pipeline.
+- **Alt + c**: Copy the current subcommand.
+- **Alt + x**: Cut the current subcommand.
+- **Alt + v**: Paste the copied/cut subcommand after the current one.
 - **Home / End**: Move cursor to the beginning or end of the command line.
 - **Ctrl + p**: Previous command in history.
 - **Ctrl + n**: Next command in history.
@@ -205,6 +214,7 @@ Available theme keys:
 - `output_highlight`: Style for search results in the output.
 - `output_highlight_current`: Style for the currently selected search result.
 - `line_nums`: Style for line numbers in the output.
+- `popup`: Style for popups (e.g., help, save, live mode confirmation).
 
 ```toml
 [theme.cmd_highlight]
