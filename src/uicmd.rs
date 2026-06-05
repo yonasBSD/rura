@@ -30,6 +30,9 @@ pub enum UiCmd {
     SaveOutput,
     SaveCommand,
     FormatCommand,
+    SubcommandCut,
+    SubcommandCopy,
+    SubcommandPaste,
 }
 
 pub struct KeyBindings {
@@ -85,6 +88,15 @@ impl KeyBindings {
         bindings.insert(UiCmd::SaveOutput, parse_bindings(&config.save_output));
         bindings.insert(UiCmd::SaveCommand, parse_bindings(&config.save_command));
         bindings.insert(UiCmd::FormatCommand, parse_bindings(&config.format_command));
+        bindings.insert(UiCmd::SubcommandCut, parse_bindings(&config.subcommand_cut));
+        bindings.insert(
+            UiCmd::SubcommandCopy,
+            parse_bindings(&config.subcommand_copy),
+        );
+        bindings.insert(
+            UiCmd::SubcommandPaste,
+            parse_bindings(&config.subcommand_paste),
+        );
 
         KeyBindings { bindings }
     }

@@ -104,6 +104,9 @@ pub struct KeyBindingsConfig {
     pub save_output: Vec<String>,
     pub save_command: Vec<String>,
     pub format_command: Vec<String>,
+    pub subcommand_cut: Vec<String>,
+    pub subcommand_copy: Vec<String>,
+    pub subcommand_paste: Vec<String>,
 }
 
 impl Default for KeyBindingsConfig {
@@ -144,6 +147,9 @@ impl Default for KeyBindingsConfig {
             save_output: vec!["ctrl+s".into()],
             save_command: vec!["ctrl+alt+s".into()],
             format_command: vec!["alt+o".into()],
+            subcommand_cut: vec!["alt+x".into()],
+            subcommand_copy: vec!["alt+c".into()],
+            subcommand_paste: vec!["alt+v".into()],
         }
     }
 }

@@ -517,15 +517,6 @@ impl App {
                     self.input_mode = InputMode::LiveFull;
                 }
             },
-            (Char('x'), KeyModifiers::ALT) => {
-                self.rura_widget.cut_current();
-            }
-            (Char('c'), KeyModifiers::ALT) => {
-                self.rura_widget.copy_current();
-            }
-            (Char('v'), KeyModifiers::ALT) => {
-                self.rura_widget.paste_after_current();
-            }
             _ => match to_ui_command(&self.key_bindings, code, mods) {
                 Some(ui_cmd) => match ui_cmd {
                     UiCmd::Quit => {
@@ -547,6 +538,15 @@ impl App {
                     }
                     UiCmd::SubcommandPrev => {
                         self.rura_widget.subcommand_prev();
+                    }
+                    UiCmd::SubcommandCut => {
+                        self.rura_widget.cut_current();
+                    }
+                    UiCmd::SubcommandCopy => {
+                        self.rura_widget.copy_current();
+                    }
+                    UiCmd::SubcommandPaste => {
+                        self.rura_widget.paste_after_current();
                     }
                     UiCmd::HistoryNext => {
                         // disable history in live mode
