@@ -4,6 +4,7 @@ mod completable_input;
 mod completion;
 mod config;
 mod debouncer;
+mod file_saver;
 mod help_widget;
 mod history;
 mod output_widget;

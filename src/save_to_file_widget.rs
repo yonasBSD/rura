@@ -1,8 +1,5 @@
 use crate::completable_input::CompletableInput;
 use crate::theme::Theme;
-use cfg_if::cfg_if;
-use itertools::Itertools;
-use log::debug;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Constraint::Length;
 use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
@@ -10,11 +7,6 @@ use ratatui::prelude::{Line, Stylize, Widget};
 use ratatui::style::Styled;
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use std::cell::Cell;
-use std::fs::OpenOptions;
-use std::io::Write;
-#[cfg(unix)]
-use std::os::unix::fs::OpenOptionsExt;
-use std::path::PathBuf;
 
 pub struct SaveToFileWidget {
     pub title: String,
@@ -37,59 +29,6 @@ impl SaveToFileWidget {
 
     pub fn cursor(&self) -> (u16, u16) {
         self.cursor.get()
-    }
-
-    pub fn save(&mut self, content: Vec<u8>) -> anyhow::Result<()> {
-        cfg_if! {
-            if #[cfg(unix)] {
-                self.save_file(content, 0o644)
-            } else if #[cfg(windows)] {
-                self.save_file(content)
-            }
-        }
-    }
-
-    pub fn save_executable(&mut self, content: &str) -> anyhow::Result<()> {
-        cfg_if! {
-            if #[cfg(unix)] {
-                self.save_file(content.bytes().collect_vec(), 0o755)
-            } else if #[cfg(windows)] {
-                self.save_file(content.bytes().collect_vec())
-            }
-        }
-    }
-
-    #[cfg(unix)]
-    fn save_file(&mut self, content: Vec<u8>, mode: u32) -> anyhow::Result<()> {
-        let path = PathBuf::from(self.file_path_input.value().trim());
-        let mut file = OpenOptions::new()
-            .create_new(true)
-            .write(true)
-            .mode(mode)
-            .open(path)?;
-
-        debug!("Saving with len: {:?}", content.len());
-
-        file.write_all(&content)?;
-
-        self.error_message = None;
-
-        Ok(())
-    }
-
-    #[cfg(windows)]
-    fn save_file(&mut self, content: Vec<u8>) -> anyhow::Result<()> {
-        let path = PathBuf::from(self.file_path_input.value().trim());
-
-        let mut file = OpenOptions::new().create_new(true).write(true).open(path)?;
-
-        debug!("Saving with len: {:?}", content.len());
-
-        file.write_all(&content)?;
-
-        self.error_message = None;
-
-        Ok(())
     }
 }
 

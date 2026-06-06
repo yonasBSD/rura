@@ -5,6 +5,7 @@ use crate::args::Args;
 use crate::completable_input::CompletableInput;
 use crate::config::Config;
 use crate::debouncer::debouncer_task;
+use crate::file_saver::{FileSaver, FileSavers};
 use crate::help_widget::HelpWidget;
 use crate::history::History;
 use crate::output_widget::{ErrorDisplayMode, ErrorPanePlacement, OutputWidget};
@@ -49,7 +50,6 @@ pub struct App {
     help_widget: HelpWidget,
     save_output_widget: SaveToFileWidget,
     save_command_widget: SaveToFileWidget,
-    shell: String,
     action_rx: Receiver<Action>,
     command_tx: Sender<RuraCommand>,
     key_bindings: KeyBindings,
@@ -60,6 +60,7 @@ pub struct App {
     active_modal: ActiveModal,
     in_progress: Option<SystemTime>,
     theme: Theme,
+    file_saver: Box<dyn FileSaver>,
     exit: bool,
 }
 
@@ -188,7 +189,6 @@ impl App {
                 shell.clone(),
                 Theme::from_config(&config.theme),
             ),
-            shell,
             action_rx,
             command_tx,
             debouncer_tx,
@@ -200,6 +200,7 @@ impl App {
             active_modal: ActiveModal::default(),
             in_progress: None,
             theme: Theme::from_config(&config.theme),
+            file_saver: FileSavers::new(&shell),
             exit: false,
         }
     }
@@ -285,11 +286,8 @@ impl App {
             }
             (Enter, KeyModifiers::NONE) => match self.save_command_to_file() {
                 Ok(()) => {
-                    debug!(
-                        "Output saved to file: {}",
-                        self.save_command_widget.file_path_input.value()
-                    );
                     self.active_modal = ActiveModal::default();
+                    self.save_command_widget.error_message = None;
                 }
                 Err(e) => {
                     self.save_command_widget.error_message = Some(e.to_string());
@@ -320,10 +318,7 @@ impl App {
             }
             (Enter, KeyModifiers::NONE) => match self.save_output_to_file() {
                 Ok(()) => {
-                    debug!(
-                        "Output saved to file: {}",
-                        self.save_output_widget.file_path_input.value()
-                    );
+                    self.save_output_widget.error_message = None;
                     self.active_modal = ActiveModal::default();
                 }
                 Err(e) => {
@@ -635,16 +630,18 @@ impl App {
     }
 
     fn save_output_to_file(&mut self) -> Result<()> {
-        self.save_output_widget
-            .save(self.output_widget.output.bytes.clone())
+        let path = PathBuf::from(self.save_output_widget.file_path_input.value().trim());
+        self.file_saver
+            .save(path, self.output_widget.output.bytes.clone())
     }
 
     fn save_command_to_file(&mut self) -> Result<()> {
-        self.save_command_widget.save_executable(&format!(
-            "#!/usr/bin/env {}\n\n{}",
-            self.shell,
-            self.rura_widget.command_input.value()
-        ))
+        let path = PathBuf::from(self.save_command_widget.file_path_input.value().trim());
+
+        self.file_saver.save_script(
+            path,
+            self.rura_widget.command_input.value().bytes().collect_vec(),
+        )
     }
 
     fn handle_execute(&mut self, kind: ExecuteType) {
@@ -1018,7 +1015,6 @@ mod tests {
                     Theme::from_config(&theme_config),
                 ),
                 search_widget: SearchWidget::default(),
-                shell: "sh".into(),
                 action_rx,
                 command_tx,
                 debouncer_tx,
@@ -1030,6 +1026,7 @@ mod tests {
                 active_mode: ActiveMode::default(),
                 active_modal: ActiveModal::default(),
                 theme: Theme::from_config(&theme_config),
+                file_saver: FileSavers::new(""),
                 in_progress: None,
             }
         }
