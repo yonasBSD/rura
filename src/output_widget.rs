@@ -200,15 +200,15 @@ impl OutputWidget {
     }
 
     pub fn scroll_down(&mut self) {
-        if self.main_output().len() > self.viewport().rows.len() {
-            let max_offset = self.main_output().lines.len().saturating_sub(1); // keep at least one line visible
+        if self.output.len() > self.viewport().rows.len() {
+            let max_offset = self.output.lines.len().saturating_sub(1); // keep at least one line visible
             self.offset.row = self.offset.row.saturating_add(1).min(max_offset);
         }
     }
 
     pub fn scroll_page_down(&mut self) {
-        if self.main_output().len() > self.viewport().rows.len() {
-            let max_offset = self.main_output().lines.len().saturating_sub(1); // keep at least one line visible
+        if self.output.len() > self.viewport().rows.len() {
+            let max_offset = self.output.lines.len().saturating_sub(1); // keep at least one line visible
             let page_size = self.output_content_area_size.get().height as usize / 2;
             self.offset.row = self.offset.row.saturating_add(page_size).min(max_offset);
         }
@@ -251,14 +251,9 @@ impl OutputWidget {
         self.wrap = !self.wrap;
     }
 
-    pub fn main_output(&self) -> &StringOutput {
-        &self.output
-    }
-
     fn main_output_width(&self) -> usize {
-        let output = self.main_output();
         let mut max_len = 0;
-        for line in &output.lines {
+        for line in &self.output.lines {
             max_len = max_len.max(line.len());
         }
         max_len
@@ -305,7 +300,7 @@ impl OutputWidget {
             }
         };
 
-        let line_nums_width = self.main_output().len().to_string().len();
+        let line_nums_width = self.output.len().to_string().len();
 
         let lines_content_scroll_layout = Layout::default()
             .direction(Direction::Horizontal)
@@ -376,7 +371,7 @@ impl Widget for &OutputWidget {
             err_output_par.render(errors_area, buf);
         }
 
-        let output_len = self.main_output().len();
+        let output_len = self.output.len();
 
         let height = output_content_area.height.min(output_len as u16);
 
@@ -386,13 +381,11 @@ impl Widget for &OutputWidget {
             from..to
         };
 
-        let output = self.main_output();
-
         let line_nums = visible_lines
             .clone()
             .flat_map(|i| {
                 let visual_line_count = if self.wrap {
-                    Paragraph::new(output.lines[i].as_str())
+                    Paragraph::new(self.output.lines[i].as_str())
                         .wrap(Wrap::default())
                         .line_count(output_content_area.width)
                 } else {
@@ -404,13 +397,13 @@ impl Widget for &OutputWidget {
             })
             .collect::<Vec<String>>();
         let lines_par = Paragraph::new(line_nums.join("\n")).style(theme.line_nums);
-        if output.ok {
+        if self.output.ok {
             lines_par.render(line_nums_area, buf);
         }
 
         let output_par = {
             let mut par = if !self.highlight_positions.is_empty() {
-                let lines = (&output.lines[visible_lines.clone()])
+                let lines = (&self.output.lines[visible_lines.clone()])
                     .iter()
                     .enumerate()
                     .map(|(line_index, line)| {
@@ -460,7 +453,7 @@ impl Widget for &OutputWidget {
                     .scroll((0, self.offset.col as u16)) // todo
                     .block(Block::default())
             } else {
-                Paragraph::new(output.lines[visible_lines].join("\n"))
+                Paragraph::new(self.output.lines[visible_lines].join("\n"))
                     .scroll((0, self.offset.col as u16)) // todo
                     .block(Block::default())
             };
