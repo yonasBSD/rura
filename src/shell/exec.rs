@@ -1,8 +1,8 @@
+use crate::shell::output::Output;
 use anyhow::anyhow;
 use std::io::Write;
 use std::process::{Command, Stdio};
 use std::thread;
-use crate::shell::output::Output;
 
 pub trait Exec {
     fn exec(&self, command: Command, stdin: Vec<u8>) -> anyhow::Result<Output>;

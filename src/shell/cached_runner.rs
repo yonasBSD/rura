@@ -2,7 +2,7 @@ use crate::rura::RuraCommand;
 use crate::shell::builder::{CommandBuilder, UsrBinEnvCommandBuilder};
 use crate::shell::cmd_runner::{CmdResult, CmdRunner};
 use crate::shell::exec::{Exec, SystemExec};
-use crate::shell::output::{Output};
+use crate::shell::output::Output;
 use itertools::Itertools;
 use log::{debug, info};
 use std::cell::RefCell;
