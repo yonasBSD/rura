@@ -8,9 +8,24 @@ use std::time::SystemTime;
 
 #[allow(dead_code)]
 pub struct SimpleCmdRunner {
-    pub(crate) exec: Box<dyn Exec>,
-    pub(crate) builder: Box<dyn CommandBuilder>,
-    pub(crate) stdin: Vec<u8>,
+    exec: Box<dyn Exec>,
+    builder: Box<dyn CommandBuilder>,
+    stdin: Vec<u8>,
+}
+
+impl SimpleCmdRunner {
+    #[cfg(windows)]
+    pub fn new(shell: &str, stdin: Vec<u8>) -> Self {
+        use crate::shell::builder::PwshCommandBuilder;
+        use crate::shell::exec::SystemExec;
+        SimpleCmdRunner {
+            exec: Box::new(SystemExec),
+            builder: Box::new(PwshCommandBuilder {
+                shell: shell.into(),
+            }),
+            stdin,
+        }
+    }
 }
 
 impl CmdRunner for SimpleCmdRunner {

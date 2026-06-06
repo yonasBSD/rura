@@ -21,16 +21,9 @@ impl CmdRunners {
 
     #[cfg(windows)]
     pub fn new(shell: &str, stdin: Vec<u8>, _no_cache: bool) -> Box<dyn CmdRunner> {
-        use crate::shell::builder::PwshCommandBuilder;
-        use crate::shell::exec::SystemExec;
         use crate::shell::simple_runner::SimpleCmdRunner;
-        Box::new(SimpleCmdRunner {
-            exec: Box::new(SystemExec),
-            builder: Box::new(PwshCommandBuilder {
-                shell: shell.into(),
-            }),
-            stdin,
-        })
+
+        Box::new(SimpleCmdRunner::new(shell, stdin))
     }
 }
 

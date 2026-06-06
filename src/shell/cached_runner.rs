@@ -8,10 +8,10 @@ use log::{debug, info};
 use std::time::SystemTime;
 
 pub struct CachedCmdRunner {
-    pub(crate) exec: Box<dyn Exec>,
-    pub(crate) builder: Box<dyn CommandBuilder>,
-    pub(crate) stdin: Vec<u8>,
-    pub(crate) cache: Vec<(String, Vec<u8>)>,
+    exec: Box<dyn Exec>,
+    builder: Box<dyn CommandBuilder>,
+    stdin: Vec<u8>,
+    cache: Vec<(String, Vec<u8>)>,
 }
 
 impl CachedCmdRunner {
