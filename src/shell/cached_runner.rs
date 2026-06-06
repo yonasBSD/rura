@@ -1,8 +1,8 @@
 use crate::rura::RuraCommand;
 use crate::shell::builder::{CommandBuilder, UsrBinEnvCommandBuilder};
 use crate::shell::cmd_runner::{CmdResult, CmdRunner};
-use crate::shell::exec::{CommandOutput, Exec, SystemExec};
-use crate::shell::output::Output;
+use crate::shell::exec::{Exec, SystemExec};
+use crate::shell::output::{Output};
 use itertools::Itertools;
 use log::{debug, info};
 use std::cell::RefCell;
@@ -36,7 +36,7 @@ impl CmdRunner for CachedCmdRunner {
 
         if command.is_empty() {
             return Ok(CmdResult {
-                output: Output::ok(self.stdin.clone()),
+                output: Output::Ok(self.stdin.clone()),
                 failed_subcommand: None,
             });
         }
@@ -76,13 +76,13 @@ impl CmdRunner for CachedCmdRunner {
             debug!("    time: {:?}, ", now_sub.elapsed()?);
 
             match output {
-                CommandOutput::Stdout(bytes) => {
+                Output::Ok(bytes) => {
                     cache.push((subcommand.clone(), bytes));
                 }
-                CommandOutput::Stderr(bytes, code) => {
+                Output::Err(bytes, code) => {
                     debug!("  failed - aborting further execution");
                     return Ok(CmdResult {
-                        output: Output::err(bytes, code),
+                        output: Output::Err(bytes, code),
                         failed_subcommand: Some(i),
                     });
                 }
@@ -103,7 +103,7 @@ impl CmdRunner for CachedCmdRunner {
         debug!("  command exec took {elapsed:?}");
 
         Ok(CmdResult {
-            output: Output::ok(cached.1.clone()),
+            output: Output::Ok(cached.1.clone()),
             failed_subcommand: None,
         })
     }
@@ -351,7 +351,7 @@ mod tests {
             .unwrap();
 
         // output of the last called command
-        assert_eq!(result.output, Output::err_str("cmd2err-output", Some(1)));
+        assert_eq!(result.output, Output::err_str("cmd2err-output"));
 
         // cmd2mod is called since it's modified
         // cmd3 is also called because it was after modified command
@@ -387,7 +387,7 @@ mod tests {
             .run(&vec!["cmd1".into(), "cmd2err".into(), "cmd3".into()].into())
             .unwrap();
 
-        assert_eq!(result.output, Output::err_str("cmd2err-output", Some(1)));
+        assert_eq!(result.output, Output::err_str("cmd2err-output"));
 
         // cmd1 not called because it's cached
         assert_eq!(

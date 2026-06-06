@@ -1,7 +1,7 @@
 use crate::rura::RuraCommand;
 use crate::shell::builder::CommandBuilder;
 use crate::shell::cmd_runner::{CmdResult, CmdRunner};
-use crate::shell::exec::{CommandOutput, Exec};
+use crate::shell::exec::Exec;
 use crate::shell::output::Output;
 use log::{debug, info};
 use std::time::SystemTime;
@@ -34,7 +34,7 @@ impl CmdRunner for SimpleCmdRunner {
 
         if command.is_empty() {
             return Ok(CmdResult {
-                output: Output::ok(self.stdin.clone()),
+                output: Output::Ok(self.stdin.clone()),
                 failed_subcommand: None,
             });
         }
@@ -47,16 +47,10 @@ impl CmdRunner for SimpleCmdRunner {
         let elapsed = now.elapsed()?;
         debug!("command exec took {elapsed:?}");
 
-        match output {
-            CommandOutput::Stdout(bytes) => Ok(CmdResult {
-                output: Output::ok(bytes),
-                failed_subcommand: None,
-            }),
-            CommandOutput::Stderr(bytes, code) => Ok(CmdResult {
-                output: Output::err(bytes, code),
-                failed_subcommand: None,
-            }),
-        }
+        Ok(CmdResult {
+            output,
+            failed_subcommand: None,
+        })
     }
 }
 

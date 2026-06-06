@@ -2,15 +2,16 @@ use anyhow::anyhow;
 use std::io::Write;
 use std::process::{Command, Stdio};
 use std::thread;
+use crate::shell::output::Output;
 
 pub trait Exec {
-    fn exec(&self, command: Command, stdin: Vec<u8>) -> anyhow::Result<CommandOutput>;
+    fn exec(&self, command: Command, stdin: Vec<u8>) -> anyhow::Result<Output>;
 }
 
 pub struct SystemExec;
 
 impl Exec for SystemExec {
-    fn exec(&self, mut command: Command, stdin: Vec<u8>) -> anyhow::Result<CommandOutput> {
+    fn exec(&self, mut command: Command, stdin: Vec<u8>) -> anyhow::Result<Output> {
         let mut child = command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -30,19 +31,15 @@ impl Exec for SystemExec {
         match child.wait_with_output() {
             Ok(output) => {
                 if output.status.success() {
-                    Ok(CommandOutput::Stdout(output.stdout))
+                    Ok(Output::Ok(output.stdout))
                 } else {
-                    Ok(CommandOutput::Stderr(output.stderr, output.status.code()))
+                    // failed successfully!
+                    Ok(Output::Err(output.stderr, output.status.code()))
                 }
             }
             Err(e) => Err(anyhow!("Failed to execute command '{command:?}': {e}")),
         }
     }
-}
-
-pub enum CommandOutput {
-    Stdout(Vec<u8>),
-    Stderr(Vec<u8>, Option<i32>),
 }
 
 #[cfg(test)]
@@ -52,7 +49,7 @@ pub struct MockExec {
 
 #[cfg(test)]
 impl Exec for MockExec {
-    fn exec(&self, command: Command, stdin: Vec<u8>) -> anyhow::Result<CommandOutput> {
+    fn exec(&self, command: Command, stdin: Vec<u8>) -> anyhow::Result<Output> {
         use itertools::Itertools;
         let program = command.get_program().to_string_lossy().into_owned();
         self.calls.borrow_mut().push((
@@ -60,12 +57,12 @@ impl Exec for MockExec {
             String::from_utf8_lossy(stdin.as_slice()).into(),
         ));
         if program.ends_with("err") {
-            Ok(CommandOutput::Stderr(
+            Ok(Output::Err(
                 format!("{}-output", program).bytes().collect_vec(),
                 Some(1),
             ))
         } else {
-            Ok(CommandOutput::Stdout(
+            Ok(Output::Ok(
                 format!("{}-output", program).bytes().collect_vec(),
             ))
         }

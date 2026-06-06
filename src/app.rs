@@ -61,6 +61,7 @@ pub struct App {
     in_progress: Option<SystemTime>,
     theme: Theme,
     file_saver: Box<dyn FileSaver>,
+    success_output_bytes: Vec<u8>,
     exit: bool,
 }
 
@@ -133,7 +134,7 @@ impl App {
                     s3.send(CommandCompleted(
                         RuraCommand::empty(),
                         CmdResult {
-                            output: Output::err(e.to_string().bytes().collect(), None),
+                            output: Output::Err(e.to_string().bytes().collect(), None),
                             failed_subcommand: None,
                         },
                     ))
@@ -200,6 +201,7 @@ impl App {
             in_progress: None,
             theme: Theme::from_config(&config.theme),
             file_saver: FileSavers::new(&shell),
+            success_output_bytes: Vec::new(),
             exit: false,
         }
     }
@@ -225,12 +227,15 @@ impl App {
                         self.rura_widget.history.push(&command.to_string())
                     } else {
                         // in live mode only save commands that were successfully executed
-                        if result.output.ok {
+                        if let Output::Ok(_) = result.output {
                             self.rura_widget.history.push(&command.to_string())
                         }
                     }
                 }
-                self.output_widget.handle_command_output(result.output);
+                self.output_widget.handle_command_output(&result.output);
+                if let Output::Ok(bytes) = result.output {
+                    self.success_output_bytes = bytes;
+                }
                 self.rura_widget.failed_subcommand = result.failed_subcommand;
             }
             ResetHighlight => self.rura_widget.highlight_until = None,
@@ -631,7 +636,7 @@ impl App {
     fn save_output_to_file(&mut self) -> Result<()> {
         let path = PathBuf::from(self.save_output_widget.file_path_input.value().trim());
         self.file_saver
-            .save(path, self.output_widget.output.bytes.clone())
+            .save(path, self.success_output_bytes.clone())
     }
 
     fn save_command_to_file(&mut self) -> Result<()> {
@@ -851,7 +856,7 @@ fn handle_command_task(
                 Err(e) => {
                     // todo use dedicated status widget for such errors?
                     let cmd_out = CmdResult {
-                        output: Output::err(
+                        output: Output::Err(
                             "Failed running command, check logs".bytes().collect_vec(),
                             None,
                         ),
@@ -1003,6 +1008,7 @@ mod tests {
                 active_modal: ActiveModal::default(),
                 theme: Theme::from_config(&theme_config),
                 file_saver: FileSavers::new(""),
+                success_output_bytes: Vec::new(),
                 in_progress: None,
             }
         }
@@ -1128,18 +1134,9 @@ mod tests {
             failed_subcommand: None,
         };
 
-        app.handle_action(CommandCompleted(
-            "g".into(),
-            cmd_res(Output::err_str("", None)),
-        ));
-        app.handle_action(CommandCompleted(
-            "gr".into(),
-            cmd_res(Output::err_str("", None)),
-        ));
-        app.handle_action(CommandCompleted(
-            "gre".into(),
-            cmd_res(Output::err_str("", None)),
-        ));
+        app.handle_action(CommandCompleted("g".into(), cmd_res(Output::err_str(""))));
+        app.handle_action(CommandCompleted("gr".into(), cmd_res(Output::err_str(""))));
+        app.handle_action(CommandCompleted("gre".into(), cmd_res(Output::err_str(""))));
         app.handle_action(CommandCompleted("grep".into(), cmd_res(Output::ok_str(""))));
         app.handle_action(CommandCompleted(
             "grep 'abc'".into(),
@@ -1147,7 +1144,7 @@ mod tests {
         ));
         app.handle_action(CommandCompleted(
             "gp 'abc'".into(),
-            cmd_res(Output::err_str("", None)),
+            cmd_res(Output::err_str("")),
         ));
 
         assert_eq!(
@@ -1165,10 +1162,7 @@ mod tests {
             failed_subcommand: None,
         };
 
-        app.handle_action(CommandCompleted(
-            "g".into(),
-            cmd_res(Output::err_str("", None)),
-        ));
+        app.handle_action(CommandCompleted("g".into(), cmd_res(Output::err_str(""))));
         app.handle_action(CommandCompleted("grep".into(), cmd_res(Output::ok_str(""))));
 
         assert_eq!(

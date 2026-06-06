@@ -24,8 +24,8 @@ struct Viewport {
 }
 
 pub struct OutputWidget {
-    pub output: Output,
-    error_output_opt: Option<Output>,
+    output: StringOutput,
+    error_output_opt: Option<StringOutput>,
     offset: Position,
     wrap: bool,
     theme: Theme,
@@ -39,7 +39,11 @@ impl OutputWidget {
     pub fn new(theme_config: &ThemeConfig, error_pane_placement: ErrorPanePlacement) -> Self {
         Self {
             offset: Position::default(),
-            output: Output::ok(vec![]),
+            output: StringOutput {
+                lines: vec![],
+                status_code: None,
+                ok: true,
+            },
             error_output_opt: None,
             wrap: false,
             theme: Theme::from_config(theme_config),
@@ -163,16 +167,32 @@ impl OutputWidget {
         self.output.lines.len()
     }
 
-    pub fn handle_command_output(&mut self, output: Output) {
-        if self.output.len() != output.len() {
-            self.offset = Position::default();
-        }
+    pub fn handle_command_output(&mut self, output: &Output) {
+        match output {
+            Output::Ok(bytes) => {
+                let str = String::from_utf8_lossy(&bytes);
+                let lines = str.lines().map(|a| a.into()).collect_vec();
+                if self.output.len() != lines.len() {
+                    self.offset = Position::default();
+                }
+                self.output = StringOutput {
+                    lines,
+                    status_code: None,
+                    ok: true,
+                };
 
-        if output.ok {
-            self.output = output;
-            self.error_output_opt = None;
-        } else {
-            self.error_output_opt = Some(output);
+                self.error_output_opt = None;
+            }
+            Output::Err(bytes, code) => {
+                let str = String::from_utf8_lossy(&bytes);
+                let lines = str.lines().map(|a| a.into()).collect_vec();
+
+                self.error_output_opt = Some(StringOutput {
+                    lines: lines,
+                    status_code: *code,
+                    ok: false,
+                });
+            }
         }
 
         self.highlight_index = 0;
@@ -231,7 +251,7 @@ impl OutputWidget {
         self.wrap = !self.wrap;
     }
 
-    pub fn main_output(&self) -> &Output {
+    pub fn main_output(&self) -> &StringOutput {
         &self.output
     }
 
@@ -506,8 +526,8 @@ mod tests {
         let mut widget = OutputWidget::default();
         widget.error_pane_placement = ErrorPanePlacement::Top;
 
-        widget.handle_command_output(Output::ok_str("out1\nout2\nout3"));
-        widget.handle_command_output(Output::err_str("errors1\nerrors2\nerrors3", Some(1)));
+        widget.handle_command_output(&Output::ok_str("out1\nout2\nout3"));
+        widget.handle_command_output(&Output::err_str("errors1\nerrors2\nerrors3"));
 
         terminal
             .draw(|frame| widget.render(frame.area(), frame.buffer_mut()))
@@ -523,8 +543,8 @@ mod tests {
         let mut widget = OutputWidget::default();
         widget.error_pane_placement = ErrorPanePlacement::Bottom;
 
-        widget.handle_command_output(Output::ok_str("out1\nout2\nout3"));
-        widget.handle_command_output(Output::err_str("errors1\nerrors2\nerrors3", Some(1)));
+        widget.handle_command_output(&Output::ok_str("out1\nout2\nout3"));
+        widget.handle_command_output(&Output::err_str("errors1\nerrors2\nerrors3"));
 
         terminal
             .draw(|frame| widget.render(frame.area(), frame.buffer_mut()))
@@ -546,7 +566,7 @@ mod tests {
 
         let mut widget = OutputWidget::default();
 
-        widget.handle_command_output(Output::ok_str(&generate_lines(10)));
+        widget.handle_command_output(&Output::ok_str(&generate_lines(10)));
         terminal
             .draw(|frame| widget.render(frame.area(), frame.buffer_mut()))
             .unwrap();
@@ -586,7 +606,7 @@ mod tests {
             .output_content_area_size
             .set(terminal.size().unwrap());
 
-        widget.handle_command_output(Output::ok_str(&generate_lines(8)));
+        widget.handle_command_output(&Output::ok_str(&generate_lines(8)));
 
         terminal
             .draw(|frame| widget.render(frame.area(), frame.buffer_mut()))
@@ -609,7 +629,7 @@ mod tests {
 
         let mut widget = OutputWidget::default();
 
-        widget.handle_command_output(Output::ok_str(&generate_lines(50)));
+        widget.handle_command_output(&Output::ok_str(&generate_lines(50)));
         terminal
             .draw(|frame| widget.render(frame.area(), frame.buffer_mut()))
             .unwrap();
@@ -665,7 +685,7 @@ mod tests {
             "  hl4               hl5        ",
         ];
 
-        widget.handle_command_output(Output::ok_str(&out.join("\n")));
+        widget.handle_command_output(&Output::ok_str(&out.join("\n")));
         terminal
             .draw(|frame| widget.render(frame.area(), frame.buffer_mut()))
             .unwrap();
@@ -750,4 +770,16 @@ fn split_by_ranges(str: &str, ranges: Vec<&Range<usize>>, current_opt: Option<us
     }
 
     results
+}
+
+pub struct StringOutput {
+    lines: Vec<String>,
+    pub status_code: Option<i32>,
+    pub ok: bool,
+}
+
+impl StringOutput {
+    fn len(&self) -> usize {
+        self.lines.len()
+    }
 }

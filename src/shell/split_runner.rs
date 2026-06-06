@@ -1,8 +1,8 @@
 use crate::rura::RuraCommand;
 use crate::shell::builder::{CommandBuilder, UsrBinEnvCommandBuilder};
 use crate::shell::cmd_runner::{CmdResult, CmdRunner};
-use crate::shell::exec::{CommandOutput, Exec, SystemExec};
-use crate::shell::output::Output;
+use crate::shell::exec::{Exec, SystemExec};
+use crate::shell::output::{Output};
 use log::{debug, info};
 use std::time::SystemTime;
 
@@ -45,14 +45,14 @@ impl CmdRunner for SplitCmdRunner {
             debug!("    time: {:?}, ", now_sub.elapsed()?);
 
             match output {
-                CommandOutput::Stdout(bytes) => {
+                Output::Ok(bytes) => {
                     current_stdin = bytes.clone();
                     output_opt = Some((subcommand.clone(), bytes));
                 }
-                CommandOutput::Stderr(bytes, code) => {
+                Output::Err(bytes, code) => {
                     debug!("  failed - aborting further execution");
                     return Ok(CmdResult {
-                        output: Output::err(bytes, code),
+                        output: Output::Err(bytes, code),
                         failed_subcommand: Some(i),
                     });
                 }
@@ -64,12 +64,12 @@ impl CmdRunner for SplitCmdRunner {
             debug!("command exec took {elapsed:?}");
 
             Ok(CmdResult {
-                output: Output::ok(output),
+                output: Output::Ok(output),
                 failed_subcommand: None,
             })
         } else {
             Ok(CmdResult {
-                output: Output::ok(self.stdin.clone()),
+                output: Output::Ok(self.stdin.clone()),
                 failed_subcommand: None,
             })
         }
@@ -148,6 +148,6 @@ mod tests {
             .unwrap();
 
         // output of the last called command
-        assert_eq!(result.output, Output::err_str("cmd2err-output", Some(1)));
+        assert_eq!(result.output, Output::err_str("cmd2err-output"));
     }
 }
