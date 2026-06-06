@@ -52,7 +52,7 @@ impl CmdRunner for SplitCmdRunner {
 
         let mut current_stdin = self.stdin.clone();
 
-        let mut output_opt: Option<Output> = None;
+        let mut output_opt: Option<(String, Vec<u8>)> = None;
 
         for (i, subcommand) in command.trimmed().iter().enumerate() {
             debug!("  executing sub command: '{subcommand}'");
@@ -63,24 +63,27 @@ impl CmdRunner for SplitCmdRunner {
 
             debug!("    time: {:?}, ", now_sub.elapsed()?);
 
-            if output.ok {
-                current_stdin = output.bytes.clone();
-                output_opt = Some(output);
-            } else {
-                debug!("  failed - aborting further execution");
-                return Ok(CmdResult {
-                    output,
-                    failed_subcommand: Some(i),
-                });
+            match output {
+                CommandOutput::Stdout(bytes) => {
+                    current_stdin = bytes.clone();
+                    output_opt = Some((subcommand.clone(), bytes));
+                }
+                CommandOutput::Stderr(bytes, code) => {
+                    debug!("  failed - aborting further execution");
+                    return Ok(CmdResult {
+                        output: Output::err_command(subcommand, bytes, code),
+                        failed_subcommand: Some(i),
+                    });
+                }
             }
         }
 
-        if let Some(output) = output_opt {
+        if let Some((c, output)) = output_opt {
             let elapsed = now.elapsed()?;
             debug!("command exec took {elapsed:?}");
 
             Ok(CmdResult {
-                output,
+                output: Output::ok_command(&c, output),
                 failed_subcommand: None,
             })
         } else {
@@ -95,7 +98,7 @@ impl CmdRunner for SplitCmdRunner {
 pub struct CachedCmdRunner {
     exec: Box<dyn Exec>,
     stdin: Vec<u8>,
-    cache: Vec<Output>,
+    cache: Vec<(String, Vec<u8>)>,
 }
 
 impl CachedCmdRunner {
@@ -128,19 +131,19 @@ impl CmdRunner for CachedCmdRunner {
         for (i, subcommand) in command.trimmed().iter().enumerate() {
             let cached = self.cache.get(i);
 
-            if let Some(c) = cached
+            if let Some((c, _)) = cached
                 && !skip_cache
-                && c.command == Some(subcommand.into())
+                && c == subcommand
             {
-                debug!("  using cached output for command: '{subcommand:?}'");
+                debug!("  using cached output for command: '{subcommand}'");
                 continue;
             }
 
             let current_stdin;
 
             if i > 0 {
-                if let Some(c) = self.cache.get(i - 1) {
-                    current_stdin = c.bytes.clone();
+                if let Some((_, bytes)) = self.cache.get(i - 1) {
+                    current_stdin = bytes.clone();
                 } else {
                     current_stdin = self.stdin.clone();
                 }
@@ -160,14 +163,17 @@ impl CmdRunner for CachedCmdRunner {
 
             debug!("    time: {:?}, ", now_sub.elapsed()?);
 
-            if output.ok {
-                self.cache.push(output);
-            } else {
-                debug!("  failed - aborting further execution");
-                return Ok(CmdResult {
-                    output,
-                    failed_subcommand: Some(i),
-                });
+            match output {
+                CommandOutput::Stdout(bytes) => {
+                    self.cache.push((subcommand.clone(), bytes));
+                }
+                CommandOutput::Stderr(bytes, code) => {
+                    debug!("  failed - aborting further execution");
+                    return Ok(CmdResult {
+                        output: Output::err_command(subcommand, bytes, code),
+                        failed_subcommand: Some(i),
+                    });
+                }
             }
         }
 
@@ -175,20 +181,16 @@ impl CmdRunner for CachedCmdRunner {
         // "until cursor prev" action so the full command might be still called
         // with all subcommands
 
-        let cached_commands = self
-            .cache
-            .iter()
-            .map(|c| c.command.clone())
-            .flatten()
-            .collect_vec();
+        let cached_commands = self.cache.iter().map(|(c, _)| c.clone()).collect_vec();
 
         debug!("  cached commands: {:?}", cached_commands);
 
         let elapsed = now.elapsed()?;
         debug!("  command exec took {elapsed:?}");
 
+        let cached = self.cache.get(command.len() - 1).unwrap().clone();
         Ok(CmdResult {
-            output: self.cache.get(command.len() - 1).unwrap().clone(),
+            output: Output::ok_command(&cached.0, cached.1),
             failed_subcommand: None,
         })
     }
@@ -230,15 +232,26 @@ impl CmdRunner for SimpleCmdRunner {
         let elapsed = now.elapsed()?;
         debug!("command exec took {elapsed:?}");
 
-        Ok(CmdResult {
-            output,
-            failed_subcommand: None,
-        })
+        match output {
+            CommandOutput::Stdout(bytes) => Ok(CmdResult {
+                output: Output::ok_command(&command.to_string(), bytes),
+                failed_subcommand: None,
+            }),
+            CommandOutput::Stderr(bytes, code) => Ok(CmdResult {
+                output: Output::err_command(&command.to_string(), bytes, code),
+                failed_subcommand: None,
+            }),
+        }
     }
 }
 
 trait Exec {
-    fn exec(&self, command: &str, stdin: Vec<u8>) -> Result<Output>;
+    fn exec(&self, command: &str, stdin: Vec<u8>) -> Result<CommandOutput>;
+}
+
+enum CommandOutput {
+    Stdout(Vec<u8>),
+    Stderr(Vec<u8>, Option<i32>),
 }
 
 struct SystemExec {
@@ -246,7 +259,7 @@ struct SystemExec {
 }
 
 impl Exec for SystemExec {
-    fn exec(&self, command: &str, stdin: Vec<u8>) -> Result<Output> {
+    fn exec(&self, command: &str, stdin: Vec<u8>) -> Result<CommandOutput> {
         let mut cmd = build_command(&self.shell, command);
 
         let mut child = cmd
@@ -265,22 +278,15 @@ impl Exec for SystemExec {
             let _ = child_stdin.write_all(&stdin);
         });
 
-        if let Ok(output) = child.wait_with_output() {
-            if output.status.success() {
-                Ok(Output::ok_command(&command, output.stdout))
-            } else {
-                Ok(Output::err_command(
-                    &command,
-                    output.stderr,
-                    output.status.code(),
-                ))
+        match child.wait_with_output() {
+            Ok(output) => {
+                if output.status.success() {
+                    Ok(CommandOutput::Stdout(output.stdout))
+                } else {
+                    Ok(CommandOutput::Stderr(output.stderr, output.status.code()))
+                }
             }
-        } else {
-            Ok(Output::err_command(
-                &command,
-                "Failed to execute command".bytes().collect_vec(),
-                None,
-            ))
+            Err(e) => Err(anyhow!("Failed to execute command '{command}': {e}")),
         }
     }
 }
@@ -378,21 +384,19 @@ mod tests {
     }
 
     impl Exec for MockExec {
-        fn exec(&self, command: &str, stdin: Vec<u8>) -> Result<Output> {
+        fn exec(&self, command: &str, stdin: Vec<u8>) -> Result<CommandOutput> {
             self.calls.borrow_mut().push((
                 command.into(),
                 String::from_utf8_lossy(stdin.as_slice()).into(),
             ));
             if command.ends_with("err") {
-                Ok(Output::err_command_str(
-                    command,
-                    &format!("{}-output", command),
+                Ok(CommandOutput::Stderr(
+                    format!("{}-output", command).bytes().collect_vec(),
                     Some(1),
                 ))
             } else {
-                Ok(Output::ok_command_str(
-                    command,
-                    &format!("{}-output", command),
+                Ok(CommandOutput::Stdout(
+                    format!("{}-output", command).bytes().collect_vec(),
                 ))
             }
         }
@@ -522,6 +526,9 @@ mod tests {
                 cache: vec![],
             }
         }
+        fn cache_entry(command: &str, stdin: &str) -> (String, Vec<u8>) {
+            (command.into(), stdin.bytes().collect::<Vec<u8>>())
+        }
 
         #[test]
         fn test_run_empty_command_cached() {
@@ -565,9 +572,9 @@ mod tests {
             assert_eq!(
                 runner.cache,
                 vec![
-                    Output::ok_command_str("cmd1", "cmd1-output"),
-                    Output::ok_command_str("cmd2", "cmd2-output"),
-                    Output::ok_command_str("cmd3", "cmd3-output")
+                    cache_entry("cmd1", "cmd1-output"),
+                    cache_entry("cmd2", "cmd2-output"),
+                    cache_entry("cmd3", "cmd3-output")
                 ]
             );
         }
@@ -599,9 +606,9 @@ mod tests {
             assert_eq!(
                 runner.cache,
                 vec![
-                    Output::ok_command_str("cmd1", "cmd1-output"),
-                    Output::ok_command_str("cmd2", "cmd2-output"),
-                    Output::ok_command_str("cmd3", "cmd3-output")
+                    cache_entry("cmd1", "cmd1-output"),
+                    cache_entry("cmd2", "cmd2-output"),
+                    cache_entry("cmd3", "cmd3-output")
                 ]
             );
         }
@@ -641,10 +648,10 @@ mod tests {
             assert_eq!(
                 runner.cache,
                 vec![
-                    Output::ok_command_str("cmd1", "cmd1-output"),
-                    Output::ok_command_str("cmd2", "cmd2-output"),
-                    Output::ok_command_str("cmd3", "cmd3-output"),
-                    Output::ok_command_str("cmd4", "cmd4-output")
+                    cache_entry("cmd1", "cmd1-output"),
+                    cache_entry("cmd2", "cmd2-output"),
+                    cache_entry("cmd3", "cmd3-output"),
+                    cache_entry("cmd4", "cmd4-output")
                 ]
             );
         }
@@ -683,8 +690,8 @@ mod tests {
             assert_eq!(
                 runner.cache,
                 vec![
-                    Output::ok_command_str("cmd1", "cmd1-output"),
-                    Output::ok_command_str("cmd2mod", "cmd2mod-output"),
+                    cache_entry("cmd1", "cmd1-output"),
+                    cache_entry("cmd2mod", "cmd2mod-output"),
                 ]
             );
         }
@@ -724,9 +731,9 @@ mod tests {
             assert_eq!(
                 runner.cache,
                 vec![
-                    Output::ok_command_str("cmd1", "cmd1-output"),
-                    Output::ok_command_str("cmd2mod", "cmd2mod-output"),
-                    Output::ok_command_str("cmd3", "cmd3-output"),
+                    cache_entry("cmd1", "cmd1-output"),
+                    cache_entry("cmd2mod", "cmd2mod-output"),
+                    cache_entry("cmd3", "cmd3-output"),
                 ]
             );
         }
@@ -760,10 +767,7 @@ mod tests {
             );
 
             // only cmd1 is cached since it didn't fail
-            assert_eq!(
-                runner.cache,
-                vec![Output::ok_command_str("cmd1", "cmd1-output"),]
-            );
+            assert_eq!(runner.cache, vec![cache_entry("cmd1", "cmd1-output"),]);
         }
 
         #[test]
@@ -796,10 +800,7 @@ mod tests {
 
             // only cmd1 is cached since it didn't fail
             // entry for cmd3 is cleared because cmd2err failed before
-            assert_eq!(
-                runner.cache,
-                vec![Output::ok_command_str("cmd1", "cmd1-output"),]
-            );
+            assert_eq!(runner.cache, vec![cache_entry("cmd1", "cmd1-output"),]);
         }
     }
 }
