@@ -2,7 +2,6 @@ use crate::app::Action::{
     CommandCompleted, Debounced, ResetHighlight, StartProgress, StopProgress, UserInput,
 };
 use crate::args::Args;
-use crate::cmd_runner::{CmdResult, CmdRunner, CmdRunners, Output};
 use crate::completable_input::CompletableInput;
 use crate::config::Config;
 use crate::debouncer::debouncer_task;
@@ -13,6 +12,8 @@ use crate::rura::{ExecuteType, RuraCommand};
 use crate::rura_widget::RuraWidget;
 use crate::save_to_file_widget::SaveToFileWidget;
 use crate::search_widget::SearchWidget;
+use crate::shell::cmd_runner::{CmdResult, CmdRunner, CmdRunners};
+use crate::shell::output::Output;
 use crate::theme::Theme;
 use crate::uicmd::{KeyBindings, UiCmd, to_ui_command};
 use KeyCode::{Enter, Esc, F};

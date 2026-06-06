@@ -1,0 +1,410 @@
+use crate::rura::RuraCommand;
+use crate::shell::builder::{CommandBuilder, UsrBinEnvCommandBuilder};
+use crate::shell::cmd_runner::{CmdResult, CmdRunner};
+use crate::shell::exec::{CommandOutput, Exec, SystemExec};
+use crate::shell::output::Output;
+use itertools::Itertools;
+use log::{debug, info};
+use std::time::SystemTime;
+
+pub struct CachedCmdRunner {
+    pub(crate) exec: Box<dyn Exec>,
+    pub(crate) builder: Box<dyn CommandBuilder>,
+    pub(crate) stdin: Vec<u8>,
+    pub(crate) cache: Vec<(String, Vec<u8>)>,
+}
+
+impl CachedCmdRunner {
+    pub fn new(shell: &str, stdin: Vec<u8>) -> Self {
+        Self {
+            exec: Box::new(SystemExec),
+            builder: Box::new(UsrBinEnvCommandBuilder {
+                shell: shell.into(),
+            }),
+            stdin,
+            cache: vec![],
+        }
+    }
+}
+
+impl CmdRunner for CachedCmdRunner {
+    fn run(&mut self, command: &RuraCommand) -> anyhow::Result<CmdResult> {
+        info!("executing: '{command:?}'");
+
+        if command.is_empty() {
+            return Ok(CmdResult {
+                output: Output::ok_stdin(self.stdin.clone()),
+                failed_subcommand: None,
+            });
+        }
+
+        let now = SystemTime::now();
+
+        let mut skip_cache = false;
+
+        for (i, subcommand) in command.trimmed().iter().enumerate() {
+            let cached = self.cache.get(i);
+
+            if let Some((c, _)) = cached
+                && !skip_cache
+                && c == subcommand
+            {
+                debug!("  using cached output for command: '{subcommand}'");
+                continue;
+            }
+
+            let current_stdin;
+
+            if i > 0 {
+                if let Some((_, bytes)) = self.cache.get(i - 1) {
+                    current_stdin = bytes.clone();
+                } else {
+                    current_stdin = self.stdin.clone();
+                }
+            } else {
+                current_stdin = self.stdin.clone();
+            }
+
+            // starting from the first non-cached command, we don't want to use cache for any further commands
+            skip_cache = true;
+            self.cache.truncate(i);
+
+            debug!("  executing sub command: '{subcommand}'");
+
+            let now_sub = SystemTime::now();
+
+            let cmd = self.builder.build(subcommand);
+            let output = self.exec.exec(cmd, current_stdin.clone())?;
+
+            debug!("    time: {:?}, ", now_sub.elapsed()?);
+
+            match output {
+                CommandOutput::Stdout(bytes) => {
+                    self.cache.push((subcommand.clone(), bytes));
+                }
+                CommandOutput::Stderr(bytes, code) => {
+                    debug!("  failed - aborting further execution");
+                    return Ok(CmdResult {
+                        output: Output::err_command(subcommand, bytes, code),
+                        failed_subcommand: Some(i),
+                    });
+                }
+            }
+        }
+
+        // Keep all following items in cache since user might have called for instance
+        // "until cursor prev" action so the full command might be still called
+        // with all subcommands
+
+        let cached_commands = self.cache.iter().map(|(c, _)| c.clone()).collect_vec();
+
+        debug!("  cached commands: {:?}", cached_commands);
+
+        let elapsed = now.elapsed()?;
+        debug!("  command exec took {elapsed:?}");
+
+        let cached = self.cache.get(command.len() - 1).unwrap().clone();
+        Ok(CmdResult {
+            output: Output::ok_command(&cached.0, cached.1),
+            failed_subcommand: None,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::shell::builder::TestBuilder;
+    use crate::shell::exec::MockExec;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    use crate::shell::cmd_runner::CmdRunner;
+    use crate::shell::exec::Exec;
+    use crate::shell::output::Output;
+
+    fn cached_runner(exec: Box<dyn Exec>, stdin: Vec<u8>) -> CachedCmdRunner {
+        CachedCmdRunner {
+            exec,
+            builder: Box::new(TestBuilder {}),
+            stdin,
+            cache: vec![],
+        }
+    }
+    fn cache_entry(command: &str, stdin: &str) -> (String, Vec<u8>) {
+        (command.into(), stdin.bytes().collect::<Vec<u8>>())
+    }
+
+    #[test]
+    fn test_run_empty_command_cached() {
+        let calls = Rc::new(RefCell::new(vec![]));
+        let mock_exec = MockExec {
+            calls: calls.clone(),
+        };
+        let mut runner = cached_runner(Box::new(mock_exec), "stdin".into());
+
+        let result = runner.run(&vec![].into()).unwrap();
+
+        assert_eq!(result.output, Output::ok_stdin_str("stdin"))
+    }
+
+    #[test]
+    fn test_cmd_runner_calling_three_subcommands() {
+        let calls = Rc::new(RefCell::new(vec![]));
+        let mock_exec = MockExec {
+            calls: calls.clone(),
+        };
+        let mut runner = cached_runner(Box::new(mock_exec), "stdin".into());
+
+        let result = runner
+            .run(&vec!["cmd1".into(), "cmd2".into(), "cmd3".into()].into())
+            .unwrap();
+
+        // output of the last called command
+        assert_eq!(result.output, Output::ok_command_str("cmd3", "cmd3-output"));
+
+        // input for the command is the output of the previous command
+        assert_eq!(
+            *calls.borrow(),
+            vec![
+                ("cmd1".into(), "stdin".into()),
+                ("cmd2".into(), "cmd1-output".into()),
+                ("cmd3".into(), "cmd2-output".into()),
+            ]
+        );
+
+        // all commands are cached
+        assert_eq!(
+            runner.cache,
+            vec![
+                cache_entry("cmd1", "cmd1-output"),
+                cache_entry("cmd2", "cmd2-output"),
+                cache_entry("cmd3", "cmd3-output")
+            ]
+        );
+    }
+
+    #[test]
+    fn test_cmd_runner_shorter_command() {
+        let calls = Rc::new(RefCell::new(vec![]));
+        let mock_exec = MockExec {
+            calls: calls.clone(),
+        };
+        let mut runner = cached_runner(Box::new(mock_exec), "stdin".into());
+
+        let _init_run = runner
+            .run(&vec!["cmd1".into(), "cmd2".into(), "cmd3".into()].into())
+            .unwrap();
+
+        calls.borrow_mut().clear();
+
+        // second run
+        let result = runner.run(&vec!["cmd1".into()].into()).unwrap();
+
+        // output of the last called command - cmd3
+        assert_eq!(result.output, Output::ok_command_str("cmd1", "cmd1-output"));
+
+        // no calls since the command is cached
+        assert_eq!(*calls.borrow(), vec![]);
+
+        // all commands are still cached
+        assert_eq!(
+            runner.cache,
+            vec![
+                cache_entry("cmd1", "cmd1-output"),
+                cache_entry("cmd2", "cmd2-output"),
+                cache_entry("cmd3", "cmd3-output")
+            ]
+        );
+    }
+
+    #[test]
+    fn test_cmd_runner_extended_command() {
+        let calls = Rc::new(RefCell::new(vec![]));
+        let mock_exec = MockExec {
+            calls: calls.clone(),
+        };
+        let mut runner = cached_runner(Box::new(mock_exec), "stdin".into());
+
+        let _init_run = runner
+            .run(&vec!["cmd1".into(), "cmd2".into()].into())
+            .unwrap();
+
+        calls.borrow_mut().clear();
+
+        // second run for less commands - keep whole cache
+        let result = runner
+            .run(&vec!["cmd1".into(), "cmd2".into(), "cmd3".into(), "cmd4".into()].into())
+            .unwrap();
+
+        // output of the last called command
+        assert_eq!(result.output, Output::ok_command_str("cmd4", "cmd4-output"));
+
+        // only cmd3 is called since is's the only one not cached
+        assert_eq!(
+            *calls.borrow(),
+            vec![
+                ("cmd3".into(), "cmd2-output".into()),
+                ("cmd4".into(), "cmd3-output".into()),
+            ]
+        );
+
+        // all commands are still cached
+        assert_eq!(
+            runner.cache,
+            vec![
+                cache_entry("cmd1", "cmd1-output"),
+                cache_entry("cmd2", "cmd2-output"),
+                cache_entry("cmd3", "cmd3-output"),
+                cache_entry("cmd4", "cmd4-output")
+            ]
+        );
+    }
+
+    #[test]
+    fn test_cmd_runner_modified_in_the_middle() {
+        let calls = Rc::new(RefCell::new(vec![]));
+        let mock_exec = MockExec {
+            calls: calls.clone(),
+        };
+        let mut runner = cached_runner(Box::new(mock_exec), "stdin".into());
+
+        let _init_run = runner
+            .run(&vec!["cmd1".into(), "cmd2".into(), "cmd3".into()].into())
+            .unwrap();
+        calls.borrow_mut().clear();
+
+        // second run for shorter command - keep whole cache
+        let result = runner
+            .run(&vec!["cmd1".into(), "cmd2mod".into()].into())
+            .unwrap();
+
+        // output of the last called command
+        assert_eq!(
+            result.output,
+            Output::ok_command_str("cmd2mod", "cmd2mod-output")
+        );
+
+        // cmd2mod is called since it's modified
+        assert_eq!(
+            *calls.borrow(),
+            vec![("cmd2mod".into(), "cmd1-output".into()),]
+        );
+
+        // cmd2 replaced with cmd2mod and cmd3 removed since it's invalid after modified command
+        assert_eq!(
+            runner.cache,
+            vec![
+                cache_entry("cmd1", "cmd1-output"),
+                cache_entry("cmd2mod", "cmd2mod-output"),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_cmd_runner_modified_in_the_middle_and_extended() {
+        let calls = Rc::new(RefCell::new(vec![]));
+        let mock_exec = MockExec {
+            calls: calls.clone(),
+        };
+        let mut runner = cached_runner(Box::new(mock_exec), "stdin".into());
+
+        let _init_run = runner
+            .run(&vec!["cmd1".into(), "cmd2".into(), "cmd3".into()].into())
+            .unwrap();
+        calls.borrow_mut().clear();
+
+        // second run for shorter command - keep whole cache
+        let result = runner
+            .run(&vec!["cmd1".into(), "cmd2mod".into(), "cmd3".into()].into())
+            .unwrap();
+
+        // output of the last called command
+        assert_eq!(result.output, Output::ok_command_str("cmd3", "cmd3-output"));
+
+        // cmd2mod is called since it's modified
+        // cmd3 is also called because it was after modified command
+        assert_eq!(
+            *calls.borrow(),
+            vec![
+                ("cmd2mod".into(), "cmd1-output".into()),
+                ("cmd3".into(), "cmd2mod-output".into()),
+            ]
+        );
+
+        // cmd2 replaced with cmd2mod and cmd3 replaced with updated output
+        assert_eq!(
+            runner.cache,
+            vec![
+                cache_entry("cmd1", "cmd1-output"),
+                cache_entry("cmd2mod", "cmd2mod-output"),
+                cache_entry("cmd3", "cmd3-output"),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_cmd_runner_errors() {
+        let calls = Rc::new(RefCell::new(vec![]));
+        let mock_exec = MockExec {
+            calls: calls.clone(),
+        };
+        let mut runner = cached_runner(Box::new(mock_exec), "stdin".into());
+
+        let result = runner
+            .run(&vec!["cmd1".into(), "cmd2err".into(), "cmd3".into()].into())
+            .unwrap();
+
+        // output of the last called command
+        assert_eq!(
+            result.output,
+            Output::err_command_str("cmd2err", "cmd2err-output", Some(1))
+        );
+
+        // cmd2mod is called since it's modified
+        // cmd3 is also called because it was after modified command
+        assert_eq!(
+            *calls.borrow(),
+            vec![
+                ("cmd1".into(), "stdin".into()),
+                ("cmd2err".into(), "cmd1-output".into()),
+            ]
+        );
+
+        // only cmd1 is cached since it didn't fail
+        assert_eq!(runner.cache, vec![cache_entry("cmd1", "cmd1-output"),]);
+    }
+
+    #[test]
+    fn test_cmd_runner_errors_clear_cache() {
+        let calls = Rc::new(RefCell::new(vec![]));
+        let mock_exec = MockExec {
+            calls: calls.clone(),
+        };
+        let mut runner = cached_runner(Box::new(mock_exec), "stdin".into());
+
+        let _init_run = runner
+            .run(&vec!["cmd1".into(), "cmd2".into(), "cmd3".into()].into())
+            .unwrap();
+        calls.borrow_mut().clear();
+
+        let result = runner
+            .run(&vec!["cmd1".into(), "cmd2err".into(), "cmd3".into()].into())
+            .unwrap();
+
+        assert_eq!(
+            result.output,
+            Output::err_command_str("cmd2err", "cmd2err-output", Some(1))
+        );
+
+        // cmd1 not called because it's cached
+        assert_eq!(
+            *calls.borrow(),
+            vec![("cmd2err".into(), "cmd1-output".into()),]
+        );
+
+        // only cmd1 is cached since it didn't fail
+        // entry for cmd3 is cleared because cmd2err failed before
+        assert_eq!(runner.cache, vec![cache_entry("cmd1", "cmd1-output"),]);
+    }
+}

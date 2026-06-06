@@ -1,5 +1,5 @@
-use crate::cmd_runner::Output;
 use crate::config::ThemeConfig;
+use crate::shell::output::Output;
 use crate::theme::Theme;
 use itertools::Itertools;
 use ratatui::buffer::Buffer;
@@ -501,7 +501,7 @@ pub enum ErrorPanePlacement {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cmd_runner::Output;
+    use crate::shell::output::Output;
     use insta::assert_snapshot;
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;

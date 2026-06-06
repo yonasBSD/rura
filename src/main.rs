@@ -1,6 +1,5 @@
 mod app;
 mod args;
-mod cmd_runner;
 mod completable_input;
 mod completion;
 mod config;
@@ -13,6 +12,7 @@ mod rura;
 mod rura_widget;
 mod save_to_file_widget;
 mod search_widget;
+mod shell;
 mod theme;
 mod uicmd;
 
