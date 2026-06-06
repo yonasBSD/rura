@@ -9,6 +9,7 @@ use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
 use ratatui::prelude::{Line, Stylize, Widget};
 use ratatui::style::Styled;
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+use std::cell::Cell;
 use std::fs::OpenOptions;
 use std::io::Write;
 #[cfg(unix)]
@@ -20,7 +21,7 @@ pub struct SaveToFileWidget {
     pub theme: Theme,
     pub file_path_input: CompletableInput,
     pub error_message: Option<String>,
-    pub cursor: (u16, u16),
+    cursor: Cell<(u16, u16)>,
 }
 
 impl SaveToFileWidget {
@@ -30,8 +31,12 @@ impl SaveToFileWidget {
             theme,
             file_path_input: CompletableInput::file_only("", &shell),
             error_message: None,
-            cursor: (0, 0),
+            cursor: Cell::new((0, 0)),
         }
+    }
+
+    pub fn cursor(&self) -> (u16, u16) {
+        self.cursor.get()
     }
 
     pub fn save(&mut self, content: Vec<u8>) -> anyhow::Result<()> {
@@ -88,7 +93,7 @@ impl SaveToFileWidget {
     }
 }
 
-impl Widget for &mut SaveToFileWidget {
+impl Widget for &SaveToFileWidget {
     fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,
@@ -141,10 +146,10 @@ impl Widget for &mut SaveToFileWidget {
         .right_aligned()
         .render(buttons_area, buf);
 
-        self.cursor = (
+        self.cursor.set((
             (path_input_area.x + self.file_path_input.cursor() as u16)
                 .min(path_input_area.width + path_area.x),
             path_input_area.y,
-        );
+        ));
     }
 }

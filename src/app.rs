@@ -653,7 +653,7 @@ impl App {
         }
     }
 
-    pub fn render(&mut self, frame: &mut Frame, area: Rect) {
+    pub fn render(&self, frame: &mut Frame, area: Rect) {
         let margin = Margin::new(1, 1);
 
         let inner_area = area.inner(margin);
@@ -732,7 +732,7 @@ impl App {
             }
         }
 
-        frame.render_widget(&mut self.output_widget, output_area);
+        frame.render_widget(&self.output_widget, output_area);
 
         let status_text = match self.output_widget.error_display_mode {
             ErrorDisplayMode::Inline => {
@@ -792,12 +792,12 @@ impl App {
             ActiveModal::SaveOutput => {
                 self.save_output_widget
                     .render(frame.area(), frame.buffer_mut());
-                frame.set_cursor_position(self.save_output_widget.cursor)
+                frame.set_cursor_position(self.save_output_widget.cursor())
             }
             ActiveModal::SaveCommand => {
                 self.save_command_widget
                     .render(frame.area(), frame.buffer_mut());
-                frame.set_cursor_position(self.save_command_widget.cursor)
+                frame.set_cursor_position(self.save_command_widget.cursor())
             }
             _ => {}
         }
@@ -1035,7 +1035,7 @@ mod tests {
 
     #[test]
     fn main_screen() {
-        let mut app = App::default();
+        let app = App::default();
 
         let mut terminal = TestTerminal::default().0;
         terminal

@@ -10,6 +10,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::cell::Cell;
 use std::ops::Range;
 
 #[derive(Debug, Default)]
@@ -29,7 +30,7 @@ pub struct OutputWidget {
     offset: Position,
     wrap: bool,
     theme: Theme,
-    output_content_area_size: Size,
+    output_content_area_size: Cell<Size>,
     error_pane_placement: ErrorPanePlacement,
     highlight_positions: Vec<(usize, Range<usize>)>,
     highlight_index: usize,
@@ -49,7 +50,7 @@ impl OutputWidget {
             wrap: false,
             theme: Theme::from_config(theme_config),
             error_display_mode,
-            output_content_area_size: Size::default(),
+            output_content_area_size: Cell::new(Size::default()),
             error_pane_placement,
             highlight_positions: vec![],
             highlight_index: 0,
@@ -195,7 +196,7 @@ impl OutputWidget {
     pub fn scroll_page_down(&mut self) {
         if self.main_output().len() > self.viewport().rows.len() {
             let max_offset = self.main_output().lines.len().saturating_sub(1); // keep at least one line visible
-            let page_size = self.output_content_area_size.height as usize / 2;
+            let page_size = self.output_content_area_size.get().height as usize / 2;
             self.offset.row = self.offset.row.saturating_add(page_size).min(max_offset);
         }
     }
@@ -205,7 +206,7 @@ impl OutputWidget {
     }
 
     pub fn scroll_page_up(&mut self) {
-        let page_size = self.output_content_area_size.height as usize / 2;
+        let page_size = self.output_content_area_size.get().height as usize / 2;
         self.offset.row = self.offset.row.saturating_sub(page_size);
     }
 
@@ -214,7 +215,7 @@ impl OutputWidget {
     }
 
     pub fn scroll_page_left(&mut self) {
-        let page_size = self.output_content_area_size.width as usize / 2;
+        let page_size = self.output_content_area_size.get().width as usize / 2;
         self.offset.col = self.offset.col.saturating_sub(page_size);
     }
 
@@ -228,7 +229,7 @@ impl OutputWidget {
     pub fn scroll_page_right(&mut self) {
         if self.main_output_width() > self.viewport().cols.len() {
             let max_offset = self.main_output_width().saturating_sub(1); // keep at least one line visible
-            let page_size = self.output_content_area_size.width as usize / 2;
+            let page_size = self.output_content_area_size.get().width as usize / 2;
             self.offset.col = self.offset.col.saturating_add(page_size).min(max_offset);
         }
     }
@@ -255,8 +256,10 @@ impl OutputWidget {
 
     fn viewport(&self) -> Viewport {
         Viewport {
-            cols: self.offset.col..self.offset.col + self.output_content_area_size.width as usize,
-            rows: self.offset.row..self.offset.row + self.output_content_area_size.height as usize,
+            cols: self.offset.col
+                ..self.offset.col + self.output_content_area_size.get().width as usize,
+            rows: self.offset.row
+                ..self.offset.row + self.output_content_area_size.get().height as usize,
         }
     }
 
@@ -335,7 +338,7 @@ impl OutputWidget {
     }
 }
 
-impl Widget for &mut OutputWidget {
+impl Widget for &OutputWidget {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let theme = &self.theme;
 
@@ -349,7 +352,8 @@ impl Widget for &mut OutputWidget {
 
         let line_nums_width = self.output.len().to_string().len();
 
-        self.output_content_area_size = output_content_area.into(); // save this value for scroll logic
+        self.output_content_area_size
+            .set(output_content_area.into()); // save this value for scroll logic
 
         if matches!(self.error_display_mode, ErrorDisplayMode::Pane) {
             if let Some(err_output) = &self.error_output_opt {
@@ -469,7 +473,7 @@ impl Widget for &mut OutputWidget {
         let mut state = ScrollbarState::new(
             self.output
                 .len()
-                .saturating_sub(self.output_content_area_size.height as usize),
+                .saturating_sub(self.output_content_area_size.get().height as usize),
         );
         state = state.position(self.offset.row.into());
         scroll_bar.render(vscrollbar_area, buf, &mut state);
@@ -642,7 +646,9 @@ mod tests {
         let mut terminal = Terminal::new(TestBackend::new(10, 10)).unwrap();
 
         let mut widget = OutputWidget::default();
-        widget.output_content_area_size = terminal.size().unwrap();
+        widget
+            .output_content_area_size
+            .set(terminal.size().unwrap());
 
         widget.handle_command_output(Output::ok_stdin_str(&generate_lines(8)));
 
