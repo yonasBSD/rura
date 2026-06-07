@@ -4,18 +4,19 @@ use crate::shell::cmd_runner::{CmdResult, CmdRunner};
 use crate::shell::exec::Exec;
 use crate::shell::output::Output;
 use log::{debug, info};
+use std::sync::Arc;
 use std::time::SystemTime;
 
 #[allow(dead_code)]
 pub struct SimpleCmdRunner {
     exec: Box<dyn Exec>,
     builder: Box<dyn CommandBuilder>,
-    stdin: Vec<u8>,
+    stdin: Arc<[u8]>,
 }
 
 impl SimpleCmdRunner {
     #[cfg(windows)]
-    pub fn new(shell: &str, stdin: Vec<u8>) -> Self {
+    pub fn new(shell: &str, stdin: Arc<[u8]>) -> Self {
         use crate::shell::builder::PwshCommandBuilder;
         use crate::shell::exec::SystemExec;
         SimpleCmdRunner {
@@ -64,8 +65,9 @@ mod tests {
     use crate::shell::simple_runner::SimpleCmdRunner;
     use std::cell::RefCell;
     use std::rc::Rc;
+    use std::sync::Arc;
 
-    fn simple_runner(exec: Box<dyn Exec>, stdin: Vec<u8>) -> SimpleCmdRunner {
+    fn simple_runner(exec: Box<dyn Exec>, stdin: Arc<[u8]>) -> SimpleCmdRunner {
         SimpleCmdRunner {
             exec,
             stdin,
@@ -79,7 +81,7 @@ mod tests {
         let mock_exec = MockExec {
             calls: calls.clone(),
         };
-        let runner = simple_runner(Box::new(mock_exec), "stdin".into());
+        let runner = simple_runner(Box::new(mock_exec), Arc::from("stdin".as_bytes()));
 
         let result = runner.run(&"echo hello".into()).unwrap();
 
@@ -92,7 +94,7 @@ mod tests {
         let mock_exec = MockExec {
             calls: calls.clone(),
         };
-        let runner = simple_runner(Box::new(mock_exec), "stdin".into());
+        let runner = simple_runner(Box::new(mock_exec), Arc::from("stdin".as_bytes()));
 
         let result = runner.run(&vec![].into()).unwrap();
 

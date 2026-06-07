@@ -38,6 +38,7 @@ use ratatui::{DefaultTerminal, Frame};
 use serde::{Deserialize, Serialize};
 use std::io::{Read, stdin};
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::{Duration, SystemTime};
 use std::{env, thread};
@@ -61,7 +62,7 @@ pub struct App {
     in_progress: Option<SystemTime>,
     theme: Theme,
     file_saver: Box<dyn FileSaver>,
-    success_output_bytes: Vec<u8>,
+    success_output_bytes: Arc<[u8]>,
     exit: bool,
 }
 
@@ -118,7 +119,7 @@ impl App {
                 Ok(stdin) => {
                     thread::spawn(move || {
                         handle_command_task(
-                            CmdRunners::new(&value, stdin, no_cache),
+                            CmdRunners::new(&value, Arc::from(stdin), no_cache),
                             command_rx,
                             s2,
                         )
@@ -201,7 +202,7 @@ impl App {
             in_progress: None,
             theme: Theme::from_config(&config.theme),
             file_saver: FileSavers::new(&shell),
-            success_output_bytes: Vec::new(),
+            success_output_bytes: Arc::from(Vec::new()),
             exit: false,
         }
     }
@@ -636,7 +637,7 @@ impl App {
     fn save_output_to_file(&mut self) -> Result<()> {
         let path = PathBuf::from(self.save_output_widget.file_path_input.value().trim());
         self.file_saver
-            .save(path, self.success_output_bytes.clone())
+            .save(path, self.success_output_bytes.to_vec())
     }
 
     fn save_command_to_file(&mut self) -> Result<()> {
@@ -857,7 +858,7 @@ fn handle_command_task(
                     // todo use dedicated status widget for such errors?
                     let cmd_out = CmdResult {
                         output: Output::Err(
-                            "Failed running command, check logs".bytes().collect_vec(),
+                            Arc::from("Failed running command, check logs".as_bytes()),
                             None,
                         ),
                         failed_subcommand: None,
@@ -1008,7 +1009,7 @@ mod tests {
                 active_modal: ActiveModal::default(),
                 theme: Theme::from_config(&theme_config),
                 file_saver: FileSavers::new(""),
-                success_output_bytes: Vec::new(),
+                success_output_bytes: Arc::from([]),
                 in_progress: None,
             }
         }

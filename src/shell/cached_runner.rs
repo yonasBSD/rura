@@ -6,17 +6,18 @@ use crate::shell::output::Output;
 use itertools::Itertools;
 use log::{debug, info};
 use std::cell::RefCell;
+use std::sync::Arc;
 use std::time::SystemTime;
 
 pub struct CachedCmdRunner {
     exec: Box<dyn Exec>,
     builder: Box<dyn CommandBuilder>,
-    stdin: Vec<u8>,
-    cache: RefCell<Vec<(String, Vec<u8>)>>,
+    stdin: Arc<[u8]>,
+    cache: RefCell<Vec<(String, Arc<[u8]>)>>,
 }
 
 impl CachedCmdRunner {
-    pub fn new(shell: &str, stdin: Vec<u8>) -> Self {
+    pub fn new(shell: &str, stdin: Arc<[u8]>) -> Self {
         Self {
             exec: Box::new(SystemExec),
             builder: Box::new(UsrBinEnvCommandBuilder {
@@ -121,7 +122,7 @@ mod tests {
     use crate::shell::exec::Exec;
     use crate::shell::output::Output;
 
-    fn cached_runner(exec: Box<dyn Exec>, stdin: Vec<u8>) -> CachedCmdRunner {
+    fn cached_runner(exec: Box<dyn Exec>, stdin: Arc<[u8]>) -> CachedCmdRunner {
         CachedCmdRunner {
             exec,
             builder: Box::new(TestBuilder {}),
@@ -129,8 +130,8 @@ mod tests {
             cache: RefCell::new(vec![]),
         }
     }
-    fn cache_entry(command: &str, stdin: &str) -> (String, Vec<u8>) {
-        (command.into(), stdin.bytes().collect::<Vec<u8>>())
+    fn cache_entry(command: &str, stdin: &str) -> (String, Arc<[u8]>) {
+        (command.into(), stdin.as_bytes().into())
     }
 
     #[test]
@@ -139,7 +140,7 @@ mod tests {
         let mock_exec = MockExec {
             calls: calls.clone(),
         };
-        let runner = cached_runner(Box::new(mock_exec), "stdin".into());
+        let runner = cached_runner(Box::new(mock_exec), "stdin".as_bytes().into());
 
         let result = runner.run(&vec![].into()).unwrap();
 
@@ -152,7 +153,7 @@ mod tests {
         let mock_exec = MockExec {
             calls: calls.clone(),
         };
-        let runner = cached_runner(Box::new(mock_exec), "stdin".into());
+        let runner = cached_runner(Box::new(mock_exec), "stdin".as_bytes().into());
 
         let result = runner
             .run(&vec!["cmd1".into(), "cmd2".into(), "cmd3".into()].into())
@@ -188,7 +189,7 @@ mod tests {
         let mock_exec = MockExec {
             calls: calls.clone(),
         };
-        let runner = cached_runner(Box::new(mock_exec), "stdin".into());
+        let runner = cached_runner(Box::new(mock_exec), "stdin".as_bytes().into());
 
         let _init_run = runner
             .run(&vec!["cmd1".into(), "cmd2".into(), "cmd3".into()].into())
@@ -222,7 +223,7 @@ mod tests {
         let mock_exec = MockExec {
             calls: calls.clone(),
         };
-        let runner = cached_runner(Box::new(mock_exec), "stdin".into());
+        let runner = cached_runner(Box::new(mock_exec), "stdin".as_bytes().into());
 
         let _init_run = runner
             .run(&vec!["cmd1".into(), "cmd2".into()].into())
@@ -265,7 +266,7 @@ mod tests {
         let mock_exec = MockExec {
             calls: calls.clone(),
         };
-        let runner = cached_runner(Box::new(mock_exec), "stdin".into());
+        let runner = cached_runner(Box::new(mock_exec), "stdin".as_bytes().into());
 
         let _init_run = runner
             .run(&vec!["cmd1".into(), "cmd2".into(), "cmd3".into()].into())
@@ -302,7 +303,7 @@ mod tests {
         let mock_exec = MockExec {
             calls: calls.clone(),
         };
-        let runner = cached_runner(Box::new(mock_exec), "stdin".into());
+        let runner = cached_runner(Box::new(mock_exec), "stdin".as_bytes().into());
 
         let _init_run = runner
             .run(&vec!["cmd1".into(), "cmd2".into(), "cmd3".into()].into())
@@ -344,7 +345,7 @@ mod tests {
         let mock_exec = MockExec {
             calls: calls.clone(),
         };
-        let runner = cached_runner(Box::new(mock_exec), "stdin".into());
+        let runner = cached_runner(Box::new(mock_exec), "stdin".as_bytes().into());
 
         let result = runner
             .run(&vec!["cmd1".into(), "cmd2err".into(), "cmd3".into()].into())
@@ -376,7 +377,7 @@ mod tests {
         let mock_exec = MockExec {
             calls: calls.clone(),
         };
-        let runner = cached_runner(Box::new(mock_exec), "stdin".into());
+        let runner = cached_runner(Box::new(mock_exec), "stdin".as_bytes().into());
 
         let _init_run = runner
             .run(&vec!["cmd1".into(), "cmd2".into(), "cmd3".into()].into())

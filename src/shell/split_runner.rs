@@ -4,16 +4,17 @@ use crate::shell::cmd_runner::{CmdResult, CmdRunner};
 use crate::shell::exec::{Exec, SystemExec};
 use crate::shell::output::Output;
 use log::{debug, info};
+use std::sync::Arc;
 use std::time::SystemTime;
 
 pub struct SplitCmdRunner {
     exec: Box<dyn Exec>,
     builder: Box<dyn CommandBuilder>,
-    stdin: Vec<u8>,
+    stdin: Arc<[u8]>,
 }
 
 impl SplitCmdRunner {
-    pub fn new(shell: &str, stdin: Vec<u8>) -> Self {
+    pub fn new(shell: &str, stdin: Arc<[u8]>) -> Self {
         Self {
             exec: Box::new(SystemExec {}),
             builder: Box::new(UsrBinEnvCommandBuilder {
@@ -32,7 +33,7 @@ impl CmdRunner for SplitCmdRunner {
 
         let mut current_stdin = self.stdin.clone();
 
-        let mut output_opt: Option<(String, Vec<u8>)> = None;
+        let mut output_opt: Option<(String, Arc<[u8]>)> = None;
 
         for (i, subcommand) in command.trimmed().iter().enumerate() {
             debug!("  executing sub command: '{subcommand}'");
@@ -85,8 +86,9 @@ mod tests {
     use crate::shell::split_runner::SplitCmdRunner;
     use std::cell::RefCell;
     use std::rc::Rc;
+    use std::sync::Arc;
 
-    fn runner(exec: Box<dyn Exec>, stdin: Vec<u8>) -> SplitCmdRunner {
+    fn runner(exec: Box<dyn Exec>, stdin: Arc<[u8]>) -> SplitCmdRunner {
         SplitCmdRunner {
             exec,
             stdin,
@@ -100,7 +102,7 @@ mod tests {
         let mock_exec = MockExec {
             calls: calls.clone(),
         };
-        let runner = runner(Box::new(mock_exec), "stdin".into());
+        let runner = runner(Box::new(mock_exec), Arc::from("stdin".as_bytes()));
 
         let result = runner.run(&vec![].into()).unwrap();
 
@@ -115,7 +117,7 @@ mod tests {
         let mock_exec = MockExec {
             calls: calls.clone(),
         };
-        let runner = runner(Box::new(mock_exec), "stdin".into());
+        let runner = runner(Box::new(mock_exec), Arc::from("stdin".as_bytes()));
 
         let result = runner
             .run(&vec!["cmd1".into(), "cmd2".into(), "cmd3".into()].into())
@@ -141,7 +143,7 @@ mod tests {
         let mock_exec = MockExec {
             calls: calls.clone(),
         };
-        let runner = runner(Box::new(mock_exec), "stdin".into());
+        let runner = runner(Box::new(mock_exec), Arc::from("stdin".as_bytes()));
 
         let result = runner
             .run(&vec!["cmd1".into(), "cmd2err".into(), "cmd3".into()].into())
