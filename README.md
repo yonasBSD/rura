@@ -96,13 +96,15 @@ rura --last
 
 ### CLI Arguments
 
-- `-f, --file <FILE>`: Path to the input file.
-- `-c, --command <COMMAND>`: Initial command to populate the input field.
-- `-C, --config <FILE>`: Path to a custom TOML configuration file.
-- `-l, --last`: Print the last command from history and exit.
-- `--no-cache`: Disable caching of command output.
-- `-s, --shell <SHELL>`: Specify the shell to use for execution and completions (e.g., `bash`, `zsh`, `fish`). Defaults to `sh` on Unix and `powershell` on Windows.
-- `-V, --version`: Print version information.
+| Argument | Description |
+| --- | --- |
+| `-f, --file <FILE>` | Path to the input file. |
+| `-c, --command <COMMAND>` | Initial command to populate the input field. |
+| `-C, --config <FILE>` | Path to a custom TOML configuration file. |
+| `-l, --last` | Print the last command from history and exit. |
+| `--no-cache` | Disable caching of command output. |
+| `-s, --shell <SHELL>` | Specify the shell to use for execution and completions (e.g., `bash`, `zsh`, `fish`). Defaults to `sh` on Unix and `powershell` on Windows. |
+| `-V, --version` | Print version information. |
 
 ## Key Bindings
 
@@ -189,12 +191,14 @@ The configuration path is determined as follows:
 
 ### General Options
 
-- `command_line_placement`: Set to `"top"` or `"bottom"` (default) to change where the input field is rendered.
-- `highlight_duration_ms`: Duration in milliseconds for the temporary highlighting when executing commands (default: `250`).
-- `debounce_duration_ms`: Duration in milliseconds to wait before executing commands in live mode (default: `500`).
-- `shell`: The shell to use for execution and completions (e.g., `"bash"`, `"zsh"`, `"fish"`).
-- `no_cache`: Disable caching of command output when set to `true` (default: `false`).
-- `log_level`: Set the logging level (e.g., `"info"`, `"debug"`, `"error"`). Default is `"info"`.
+| Option | Description                                                                                       |
+| --- |---------------------------------------------------------------------------------------------------|
+| `shell` | The shell to use for execution and completions (e.g., `"bash"`, `"zsh"`, `"fish"`, `"nu"`).           |
+| `command_line_placement` | Set to `"top"` or `"bottom"` (default) to change where the input field is rendered.               |
+| `highlight_duration_ms` | Duration in milliseconds for the temporary highlighting when executing commands (default: `250`). |
+| `debounce_duration_ms` | Duration in milliseconds to wait before executing commands in live mode (default: `500`).         |
+| `no_cache` | Disable caching of command output when set to `true` (default: `false`).                          |
+| `log_level` | Set the logging level (e.g., `"info"`, `"debug"`, `"error"`). Default is `"info"`.                |
 
 ### Customizing Key Bindings
 
@@ -214,18 +218,21 @@ subcommand_next = ["alt+right"]
 Colors and styles can be adjusted in the `[theme]` section. Supported colors include `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `gray`, `black`, `white`, and hex codes (e.g., `"#ffffff"`).
 
 Available theme keys:
-- `cmd_regular`: Default subcommand style.
-- `cmd_regular_pipe`: Style for the pipe character in regular mode.
-- `cmd_regular_current`: Background style for the currently selected subcommand.
-- `cmd_highlight`: Style for the subcommand being executed.
-- `cmd_highlight_pipe`: Style for the pipe character during execution.
-- `cmd_highlight_current`: Style for the current subcommand during execution.
-- `cmd_quoted`: Style for quoted strings.
-- `cmd_invalid`: Style for invalid subcommands (if parsing fails).
-- `output_highlight`: Style for search results in the output.
-- `output_highlight_current`: Style for the currently selected search result.
-- `line_nums`: Style for line numbers in the output.
-- `popup`: Style for popups (e.g., help, save, live mode confirmation).
+
+| Key | Description |
+| --- | --- |
+| `cmd_regular` | Default command style. |
+| `cmd_regular_pipe` | Style for the pipe character in regular mode. |
+| `cmd_regular_current` | Style for the currently selected subcommand. |
+| `cmd_highlight` | Style for the subcommand being executed. |
+| `cmd_highlight_pipe` | Style for the pipe character during execution. |
+| `cmd_highlight_current` | Style for the current subcommand during execution. |
+| `cmd_quoted` | Style for quoted strings. |
+| `cmd_invalid` | Style for invalid subcommands (if parsing fails). |
+| `output_highlight` | Style for search results in the output. |
+| `output_highlight_current` | Style for the currently selected search result. |
+| `line_nums` | Style for line numbers in the output. |
+| `popup` | Style for popups (e.g., help, save, live mode confirmation). |
 
 ```toml
 [theme.cmd_highlight]
