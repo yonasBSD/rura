@@ -14,8 +14,8 @@ Rura transforms the tedious "edit, up-arrow, rerun" shell cycle into a fluid, in
 - **Syntax Highlighting**: Visual feedback for subcommand boundaries, quotes, and pipes.
 - **Error Highlighting**: Highlights the failed subcommand in the input field.
 - **Command Caching**: Automatically caches output of subcommands to speed up iteration.
-- **Command Formatting**: Automatically format your command pipeline for better readability with `Alt+O`.
-- **Subcommand Editing**: Quick copy, cut, and paste of subcommands with `Alt+C`, `Alt+X`, and `Alt+V`.
+- **Command Formatting**: Automatically format your command pipeline.
+- **Subcommand Editing**: Quick copy, cut, and paste of subcommands.
 - **Progress Indicator**: Visual indicator for long-running commands.
 - **Persistent History**: Quickly access and reuse previous commands.
 - **Save to File**: Save current output or command to a file.
