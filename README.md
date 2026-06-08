@@ -108,53 +108,68 @@ rura --last
 
 ### Command Execution
 
-- **Enter**: Execute the full command pipeline.
-- **Alt + \\**: Execute the pipeline up to the current subcommand (where your cursor is).
-- **Alt + |**: Execute the pipeline up to the *previous* subcommand.
-- **Alt + i**: Reset view to show the original input data.
+| Key | Action |
+| --- | --- |
+| `Enter` | Execute the full command pipeline. |
+| `Alt + \` | Execute the pipeline up to the current subcommand (where your cursor is). |
+| `Alt + \|` | Execute the pipeline up to the *previous* subcommand. |
+| `Alt + i` | Reset view to show the original input data. |
 
 ### Navigation & View
 
-- **Arrows** or **Alt + h/j/k/l**: Scroll the output (Left, Down, Up, Right).
-- **PageUp / PageDown**, **Alt + Up / Down** or **Alt + Shift + j / k** or **Ctrl + u / Ctrl + d**: Scroll the output up/down by page.
-- **Alt + Shift + h / l**: Scroll the output left/right by page.
-- **Alt + w**: Toggle line wrapping.
+| Key                                                                                       | Action |
+|-------------------------------------------------------------------------------------------| --- |
+| `Arrows` <br> `Alt + h / j / k / l`                                                       |Scroll the output (Left, Down, Up, Right). |
+| `PageUp / PageDown` <br> `Alt + Up / Down` <br> `Alt + Shift + j / k` <br> `Ctrl + u / d` | Scroll the output up/down by page. |
+| `Alt + Shift + h / l`                                                                     | Scroll the output left/right by page. |
+| `Alt + w`                                                                                 | Toggle line wrapping. |
 
 ### Search
-- **F3 / F4**: Search forward or backward in the output.
-- **Alt + x**: Toggle regex mode.
-- **Alt + c**: Toggle case sensitivity.
+
+| Key                           | Action |
+|-------------------------------| --- |
+| `F3 / F4` <br> `Ctrl + f / b` | Search forward or backward in the output. |
+| `Alt + x`                     | Toggle regex mode. |
+| `Alt + c`                     | Toggle case sensitivity. |
 
 ### Live Execution Modes
 
-- **F11**: Toggle "Live Until Cursor" mode. Executes the pipeline up to the cursor as you type (requires confirmation).
-- **F12**: Toggle "Live Full" mode. Executes the entire pipeline as you type (requires confirmation).
+| Key | Action |
+| --- | --- |
+| `F11` | Toggle "Live Until Cursor" mode. Executes the pipeline up to the cursor as you type (requires confirmation). |
+| `F12` | Toggle "Live Full" mode. Executes the entire pipeline as you type (requires confirmation). |
 
 ### Command Input & Subcommands
 
-- **Tab**: Trigger forward command or file completion (requires `bash`, `zsh`, or `fish` available).
-- **Shift + Tab**: Trigger backward command or file completion.
-- **Alt + Right**: Move cursor to the next subcommand.
-- **Alt + Left**: Move cursor to the previous subcommand.
-- **Alt + o**: Format the command pipeline.
-- **Alt + c**: Copy the current subcommand.
-- **Alt + x**: Cut the current subcommand.
-- **Alt + v**: Paste the copied/cut subcommand after the current one.
-- **Home / End**: Move cursor to the beginning or end of the command line.
-- **Ctrl + p**: Previous command in history.
-- **Ctrl + n**: Next command in history.
+| Key                              | Action |
+|----------------------------------| --- |
+| `Tab`                            | Trigger forward command or file completion (requires `bash`, `zsh`, or `fish` available). |
+| `Shift + Tab`                    | Trigger backward command or file completion. |
+| `Alt + Right`                    | Move cursor to the next subcommand. |
+| `Alt + Left`                     | Move cursor to the previous subcommand. |
+| `Alt + o`                        | Format the command pipeline. |
+| `Alt + c`                        | Copy the current subcommand. |
+| `Alt + x`                        | Cut the current subcommand. |
+| `Alt + v`                        | Paste the copied/cut subcommand after the current one. |
+| `Home / End` <br> `Ctrl + a / e` | Move cursor to the beginning or end of the command line. |
+| `Ctrl + p`                       | Previous command in history. |
+| `Ctrl + n`                       | Next command in history. |
 
 ### Saving to File
 
-- **Ctrl + s**: Save the current output to a file.
-- **Ctrl + Alt + s**: Save the current command to a file.
+| Key | Action |
+| --- | --- |
+| `Ctrl + s` | Save the current output to a file. |
+| `Ctrl + Alt + s` | Save the current command to a file. |
 
 In the save popup, type a destination path (Tab completes paths) and press Enter to write. Existing files are not overwritten.
 
 ### General
 
-- **F1**: Toggle help screen.
-- **Ctrl + c**: Exit Rura. The last executed command is printed to your terminal.
+| Key | Action |
+| --- | --- |
+| `F1` | Toggle help screen. |
+| `Ctrl + c` | Exit Rura. The last executed command is printed to your terminal. |
 
 ## Configuration
 
