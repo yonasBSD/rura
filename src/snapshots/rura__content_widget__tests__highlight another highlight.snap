@@ -1,5 +1,5 @@
 ---
-source: src/output_widget.rs
+source: src/content_widget.rs
 expression: terminal.backend()
 ---
 "45 line45          ▲"

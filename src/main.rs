@@ -3,6 +3,7 @@ mod args;
 mod completable_input;
 mod completion;
 mod config;
+mod content_widget;
 mod debouncer;
 mod file_saver;
 mod help_widget;
