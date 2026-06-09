@@ -24,8 +24,8 @@ struct Viewport {
 }
 
 pub struct OutputWidget {
-    output: StringOutput,
-    error_output_opt: Option<StringOutput>,
+    lines: Vec<String>,
+    error_output_opt: Option<(Vec<String>, Option<i32>)>,
     offset: Position,
     wrap: bool,
     theme: Theme,
@@ -39,11 +39,7 @@ impl OutputWidget {
     pub fn new(theme_config: &ThemeConfig, error_pane_placement: ErrorPanePlacement) -> Self {
         Self {
             offset: Position::default(),
-            output: StringOutput {
-                lines: vec![],
-                status_code: None,
-                ok: true,
-            },
+            lines: vec![],
             error_output_opt: None,
             wrap: false,
             theme: Theme::from_config(theme_config),
@@ -103,7 +99,6 @@ impl OutputWidget {
 
             if let Ok(pattern) = pattern_res {
                 let positions = self
-                    .output
                     .lines
                     .iter()
                     .enumerate()
@@ -164,7 +159,7 @@ impl OutputWidget {
     }
 
     pub fn output_len(&self) -> usize {
-        self.output.lines.len()
+        self.lines.len()
     }
 
     pub fn handle_command_output(&mut self, output: &Output) {
@@ -172,14 +167,10 @@ impl OutputWidget {
             Output::Ok(bytes) => {
                 let str = String::from_utf8_lossy(&bytes);
                 let lines = str.lines().map(|a| a.into()).collect_vec();
-                if self.output.len() != lines.len() {
+                if self.lines.len() != lines.len() {
                     self.offset = Position::default();
                 }
-                self.output = StringOutput {
-                    lines,
-                    status_code: None,
-                    ok: true,
-                };
+                self.lines = lines;
 
                 self.error_output_opt = None;
             }
@@ -187,11 +178,7 @@ impl OutputWidget {
                 let str = String::from_utf8_lossy(&bytes);
                 let lines = str.lines().map(|a| a.into()).collect_vec();
 
-                self.error_output_opt = Some(StringOutput {
-                    lines: lines,
-                    status_code: *code,
-                    ok: false,
-                });
+                self.error_output_opt = Some((lines, *code));
             }
         }
 
@@ -200,15 +187,15 @@ impl OutputWidget {
     }
 
     pub fn scroll_down(&mut self) {
-        if self.output.len() > self.viewport().rows.len() {
-            let max_offset = self.output.lines.len().saturating_sub(1); // keep at least one line visible
+        if self.lines.len() > self.viewport().rows.len() {
+            let max_offset = self.lines.len().saturating_sub(1); // keep at least one line visible
             self.offset.row = self.offset.row.saturating_add(1).min(max_offset);
         }
     }
 
     pub fn scroll_page_down(&mut self) {
-        if self.output.len() > self.viewport().rows.len() {
-            let max_offset = self.output.lines.len().saturating_sub(1); // keep at least one line visible
+        if self.lines.len() > self.viewport().rows.len() {
+            let max_offset = self.lines.len().saturating_sub(1); // keep at least one line visible
             let page_size = self.output_content_area_size.get().height as usize / 2;
             self.offset.row = self.offset.row.saturating_add(page_size).min(max_offset);
         }
@@ -253,7 +240,7 @@ impl OutputWidget {
 
     fn main_output_width(&self) -> usize {
         let mut max_len = 0;
-        for line in &self.output.lines {
+        for line in &self.lines {
             max_len = max_len.max(line.len());
         }
         max_len
@@ -272,7 +259,7 @@ impl OutputWidget {
         let error_output_lines = self
             .error_output_opt
             .as_ref()
-            .map(|e| e.lines.len() + 2)
+            .map(|e| e.0.len() + 2)
             .unwrap_or(0);
 
         let (output_area, errors_area) = match self.error_pane_placement {
@@ -300,7 +287,7 @@ impl OutputWidget {
             }
         };
 
-        let line_nums_width = self.output.len().to_string().len();
+        let line_nums_width = self.lines.len().to_string().len();
 
         let lines_content_scroll_layout = Layout::default()
             .direction(Direction::Horizontal)
@@ -352,16 +339,16 @@ impl Widget for &OutputWidget {
             hscrollbar_area,
         ] = self.layout(area);
 
-        let line_nums_width = self.output.len().to_string().len();
+        let line_nums_width = self.lines.len().to_string().len();
 
         self.output_content_area_size
             .set(output_content_area.into()); // save this value for scroll logic
 
         if let Some(err_output) = &self.error_output_opt {
             let block = Block::bordered()
-                .title(format!(" Error: {} ", err_output.status_code.unwrap_or(0)))
+                .title(format!(" Error: {} ", err_output.1.unwrap_or(0)))
                 .border_style(Style::default().fg(Red));
-            let mut err_output_par = Paragraph::new(err_output.lines.join("\n"))
+            let mut err_output_par = Paragraph::new(err_output.0.join("\n"))
                 .scroll((0, self.offset.col as u16))
                 .block(block);
 
@@ -371,7 +358,7 @@ impl Widget for &OutputWidget {
             err_output_par.render(errors_area, buf);
         }
 
-        let output_len = self.output.len();
+        let output_len = self.lines.len();
 
         let height = output_content_area.height.min(output_len as u16);
 
@@ -385,7 +372,7 @@ impl Widget for &OutputWidget {
             .clone()
             .flat_map(|i| {
                 let visual_line_count = if self.wrap {
-                    Paragraph::new(self.output.lines[i].as_str())
+                    Paragraph::new(self.lines[i].as_str())
                         .wrap(Wrap::default())
                         .line_count(output_content_area.width)
                 } else {
@@ -397,13 +384,11 @@ impl Widget for &OutputWidget {
             })
             .collect::<Vec<String>>();
         let lines_par = Paragraph::new(line_nums.join("\n")).style(theme.line_nums);
-        if self.output.ok {
-            lines_par.render(line_nums_area, buf);
-        }
+        lines_par.render(line_nums_area, buf);
 
         let output_par = {
             let mut par = if !self.highlight_positions.is_empty() {
-                let lines = (&self.output.lines[visible_lines.clone()])
+                let lines = (&self.lines[visible_lines.clone()])
                     .iter()
                     .enumerate()
                     .map(|(line_index, line)| {
@@ -453,7 +438,7 @@ impl Widget for &OutputWidget {
                     .scroll((0, self.offset.col as u16)) // todo
                     .block(Block::default())
             } else {
-                Paragraph::new(self.output.lines[visible_lines].join("\n"))
+                Paragraph::new(self.lines[visible_lines].join("\n"))
                     .scroll((0, self.offset.col as u16)) // todo
                     .block(Block::default())
             };
@@ -469,7 +454,7 @@ impl Widget for &OutputWidget {
 
         let scroll_bar = Scrollbar::new(ScrollbarOrientation::VerticalRight);
         let mut state = ScrollbarState::new(
-            self.output
+            self.lines
                 .len()
                 .saturating_sub(self.output_content_area_size.get().height as usize),
         );
@@ -763,16 +748,4 @@ fn split_by_ranges(str: &str, ranges: Vec<&Range<usize>>, current_opt: Option<us
     }
 
     results
-}
-
-pub struct StringOutput {
-    lines: Vec<String>,
-    pub status_code: Option<i32>,
-    pub ok: bool,
-}
-
-impl StringOutput {
-    fn len(&self) -> usize {
-        self.lines.len()
-    }
 }
