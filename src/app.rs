@@ -229,11 +229,11 @@ impl App {
 
                 self.rura_widget.failed_subcommand = result.failed_subcommand();
 
-                self.output_widget.handle_command_result(&result);
-
                 if let Some(Output::Ok(bytes)) = result.outputs.last() {
                     self.success_output_bytes = bytes.clone();
                 }
+
+                self.output_widget.handle_command_result(result);
             }
             ResetHighlight => self.rura_widget.highlight_until = None,
             Debounced => {
@@ -259,7 +259,7 @@ impl App {
                     stdin: Arc::from("".as_bytes()),
                     outputs: vec![Output::Err(Arc::from(err.as_bytes()), None)],
                 };
-                self.output_widget.handle_command_result(&result);
+                self.output_widget.handle_command_result(result);
             }
         }
     }
@@ -505,6 +505,9 @@ impl App {
 
     fn handle_event_normal(&mut self, event: &Event, code: KeyCode, mods: KeyModifiers) {
         match (code, mods) {
+            (Char('d'), KeyModifiers::ALT) => {
+                self.output_widget.toggle_diff();
+            }
             (Esc, KeyModifiers::NONE) => {
                 self.output_widget.clear_highlight();
             }

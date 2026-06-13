@@ -21,8 +21,13 @@ pub struct Viewport {
     cols: Range<usize>,
 }
 
-pub struct ContentWidget {
-    pub lines: Vec<String>,
+pub trait ContentLine {
+    fn string(&self) -> String;
+    fn style(&self, theme: &Theme) -> Style;
+}
+
+pub struct ContentWidget<T: ContentLine> {
+    pub lines: Vec<T>,
     pub offset: Position,
     pub wrap: bool,
     pub theme: Theme,
@@ -31,7 +36,7 @@ pub struct ContentWidget {
     pub highlight_index: usize,
 }
 
-impl ContentWidget {
+impl<T: ContentLine> ContentWidget<T> {
     pub fn new(theme_config: &ThemeConfig) -> Self {
         Self {
             offset: Position::default(),
@@ -44,9 +49,7 @@ impl ContentWidget {
         }
     }
 
-    pub fn with_content(&mut self, bytes: &[u8]) {
-        let str = String::from_utf8_lossy(&bytes);
-        let lines = str.lines().map(|a| a.into()).collect_vec();
+    pub fn with_content(&mut self, lines: Vec<T>) {
         if self.lines.len() != lines.len() {
             self.offset = Position::default();
         }
@@ -109,13 +112,14 @@ impl ContentWidget {
                     .iter()
                     .enumerate()
                     .filter_map(|(i, line)| {
+                        let string_line = line.string();
                         let line_to_match = if case_sensitive {
-                            line
+                            string_line
                         } else {
-                            &line.to_lowercase()
+                            string_line.to_lowercase()
                         };
                         let matches = pattern
-                            .find_iter(line_to_match)
+                            .find_iter(&line_to_match)
                             .map(|m| (i, m.start()..m.end()))
                             .collect_vec();
                         if !matches.is_empty() {
@@ -223,7 +227,7 @@ impl ContentWidget {
     fn main_output_width(&self) -> usize {
         let mut max_len = 0;
         for line in &self.lines {
-            max_len = max_len.max(line.len());
+            max_len = max_len.max(line.string().len());
         }
         max_len
     }
@@ -277,7 +281,7 @@ impl ContentWidget {
     }
 }
 
-impl Widget for &ContentWidget {
+impl<T: ContentLine> Widget for &ContentWidget<T> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let theme = &self.theme;
 
@@ -307,7 +311,7 @@ impl Widget for &ContentWidget {
             .clone()
             .flat_map(|i| {
                 let visual_line_count = if self.wrap {
-                    Paragraph::new(self.lines[i].as_str())
+                    Paragraph::new(self.lines[i].string())
                         .wrap(Wrap::default())
                         .line_count(output_content_area.width)
                 } else {
@@ -350,20 +354,24 @@ impl Widget for &ContentWidget {
                             None
                         };
 
-                        let spans = split_by_ranges(line, line_highlight_ranges, current_match_num)
-                            .into_iter()
-                            .map(|part| match part {
-                                Part::InsideRangeCurrent(value) => {
-                                    Span::from(value).style(theme.output_highlight_current)
-                                }
-                                Part::InsideRange(value) => {
-                                    Span::from(value).style(theme.output_highlight)
-                                }
-                                Part::OutsideRange(value) => {
-                                    Span::from(value).style(Style::default())
-                                }
-                            })
-                            .collect_vec();
+                        let spans = split_by_ranges(
+                            &line.string(),
+                            line_highlight_ranges,
+                            current_match_num,
+                        )
+                        .into_iter()
+                        .map(|part| match part {
+                            Part::InsideRangeCurrent(value) => {
+                                Span::from(value).style(theme.output_highlight_current)
+                            }
+                            Part::InsideRange(value) => {
+                                Span::from(value).style(theme.output_highlight)
+                            }
+                            Part::OutsideRange(value) => {
+                                Span::from(value).style(line.style(&self.theme))
+                            }
+                        })
+                        .collect_vec();
 
                         Line::from(spans)
                     })
@@ -373,9 +381,14 @@ impl Widget for &ContentWidget {
                     .scroll((0, self.offset.col as u16)) // todo
                     .block(Block::default())
             } else {
-                Paragraph::new(self.lines[visible_lines].join("\n"))
-                    .scroll((0, self.offset.col as u16)) // todo
-                    .block(Block::default())
+                Paragraph::new(Text::from(
+                    self.lines[visible_lines]
+                        .iter()
+                        .map(|l| Line::from(l.string()).style(l.style(&self.theme)))
+                        .collect_vec(),
+                ))
+                .scroll((0, self.offset.col as u16)) // todo
+                .block(Block::default())
             };
 
             if self.wrap {
@@ -453,7 +466,7 @@ mod tests {
         }
     }
 
-    impl Default for ContentWidget {
+    impl<T: ContentLine> Default for ContentWidget<T> {
         fn default() -> Self {
             let theme_config = ThemeConfig::default();
 
@@ -467,7 +480,11 @@ mod tests {
 
         let mut widget = ContentWidget::default();
 
-        widget.with_content("out1\nout2\nout3".as_bytes());
+        widget.with_content(vec![
+            "out1".to_string(),
+            "out2".to_string(),
+            "out3".to_string(),
+        ]);
 
         terminal
             .draw(|frame| widget.render(frame.area(), frame.buffer_mut()))
@@ -476,20 +493,17 @@ mod tests {
         assert_snapshot!(terminal.backend());
     }
 
-    fn generate_lines(count: usize) -> String {
-        (1..=count)
-            .map(|i| format!("line{}", i))
-            .collect::<Vec<_>>()
-            .join("\n")
+    fn generate_lines(count: usize) -> Vec<String> {
+        (1..=count).map(|i| format!("line{}", i)).collect()
     }
 
     #[test]
     fn scrolling() {
         let mut terminal = Terminal::new(TestBackend::new(10, 5)).unwrap();
 
-        let mut widget = ContentWidget::default();
+        let mut widget: ContentWidget<String> = ContentWidget::default();
 
-        widget.with_content(&generate_lines(10).as_bytes());
+        widget.with_content(generate_lines(10));
         terminal
             .draw(|frame| widget.render(frame.area(), frame.buffer_mut()))
             .unwrap();
@@ -529,7 +543,7 @@ mod tests {
             .output_content_area_size
             .set(terminal.size().unwrap());
 
-        widget.with_content(&generate_lines(8).as_bytes());
+        widget.with_content(generate_lines(8));
 
         terminal
             .draw(|frame| widget.render(frame.area(), frame.buffer_mut()))
@@ -552,7 +566,7 @@ mod tests {
 
         let mut widget = ContentWidget::default();
 
-        widget.with_content(&generate_lines(50).as_bytes());
+        widget.with_content(generate_lines(50));
         terminal
             .draw(|frame| widget.render(frame.area(), frame.buffer_mut()))
             .unwrap();
@@ -608,7 +622,7 @@ mod tests {
             "  hl4               hl5        ",
         ];
 
-        widget.with_content(&out.join("\n").as_bytes());
+        widget.with_content(out.into_iter().map(String::from).collect());
         terminal
             .draw(|frame| widget.render(frame.area(), frame.buffer_mut()))
             .unwrap();

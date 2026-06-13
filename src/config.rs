@@ -54,6 +54,9 @@ pub struct ThemeConfig {
     pub output_highlight_current: StyleConfig,
     pub line_nums: StyleConfig,
     pub popup: StyleConfig,
+    pub diff_addition: StyleConfig,
+    pub diff_deletion: StyleConfig,
+    pub diff_equal: StyleConfig,
 }
 
 impl Default for ThemeConfig {
@@ -71,6 +74,9 @@ impl Default for ThemeConfig {
             output_highlight_current: StyleConfig::fg_bg("black", "yellow"),
             line_nums: StyleConfig::fg("magenta"),
             popup: StyleConfig::fg_bg("white", "blue"),
+            diff_addition: StyleConfig::fg("green"),
+            diff_deletion: StyleConfig::fg("red"),
+            diff_equal: StyleConfig::default(),
         }
     }
 }

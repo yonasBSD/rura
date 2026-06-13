@@ -20,6 +20,10 @@ pub struct Theme {
     pub line_nums: Style,
 
     pub popup: Style,
+
+    pub diff_addition: Style,
+    pub diff_deletion: Style,
+    pub diff_equal: Style,
 }
 
 impl Theme {
@@ -37,6 +41,9 @@ impl Theme {
             output_highlight_current: style_from_config(&config.output_highlight_current),
             line_nums: style_from_config(&config.line_nums),
             popup: style_from_config(&config.popup),
+            diff_addition: style_from_config(&config.diff_addition),
+            diff_deletion: style_from_config(&config.diff_deletion),
+            diff_equal: style_from_config(&config.diff_equal),
         }
     }
 }
