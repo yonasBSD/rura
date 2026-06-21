@@ -7,21 +7,26 @@ Rura transforms the tedious "edit, up-arrow, rerun" shell cycle into a fluid, in
 ## Features
 
 - **Partial Pipeline Execution**: Execute only up to the current subcommand to debug complex pipes.
-- **Context-aware Completion**: Tab-complete commands and file paths using your system's bash, zsh, or fish tools.
-- **Custom Shell Support**: Specify which shell to use for command execution and completions (supports `sh`, `bash`, `zsh`, `fish` on Unix and `powershell` on Windows).
 - **Live Execution Modes**: Real-time feedback as you type, with optional "Live Until Cursor" or "Live Full" modes.
-- **Search**: Search and highlight text within the output pane with regex support.
 - **Diff Mode**: Line-based diff between two outputs, with a selectable base (stdin or any subcommand's output).
-- **Syntax Highlighting**: Visual feedback for subcommand boundaries, quotes, and pipes.
-- **Error Highlighting**: Highlights the failed subcommand in the input field.
+- **Context-aware Completion**: Tab-complete commands and file paths using your system's bash, zsh, or fish tools.
 - **Command Caching**: Automatically caches output of subcommands to speed up iteration.
+- **Syntax & Error Highlighting**: Visual feedback for subcommand boundaries, quotes, and pipes, plus highlighting of failed subcommands.
+- **Customizable**: Fully configurable key bindings, themes, and UI placement via TOML.
+
+<details>
+<summary>More features</summary>
+
+- **Custom Shell Support**: Specify which shell to use for command execution and completions (supports `sh`, `bash`, `zsh`, `fish` on Unix and `powershell` on Windows).
+- **Search**: Search and highlight text within the output pane with regex support.
 - **Command Formatting**: Automatically format your command pipeline.
 - **Subcommand Editing**: Quick copy, cut, and paste of subcommands.
 - **Progress Indicator**: Visual indicator for long-running commands.
 - **Persistent History**: Quickly access and reuse previous commands.
 - **Save to File**: Save current output or command to a file.
 - **Line Wrapping**: Toggle whether long output lines wrap to fit the view.
-- **Customizable**: Fully configurable key bindings, themes, and UI placement via TOML.
+
+</details>
 
 ## Demos
 
