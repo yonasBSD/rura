@@ -11,6 +11,7 @@ Rura transforms the tedious "edit, up-arrow, rerun" shell cycle into a fluid, in
 - **Custom Shell Support**: Specify which shell to use for command execution and completions (supports `sh`, `bash`, `zsh`, `fish` on Unix and `powershell` on Windows).
 - **Live Execution Modes**: Real-time feedback as you type, with optional "Live Until Cursor" or "Live Full" modes.
 - **Search**: Search and highlight text within the output pane with regex support.
+- **Diff Mode**: Line-based diff between two outputs, with a selectable base (stdin or any subcommand's output).
 - **Syntax Highlighting**: Visual feedback for subcommand boundaries, quotes, and pipes.
 - **Error Highlighting**: Highlights the failed subcommand in the input field.
 - **Command Caching**: Automatically caches output of subcommands to speed up iteration.
@@ -138,8 +139,16 @@ rura --last
 
 | Key | Action |
 | --- | --- |
-| `F11` | Toggle "Live Until Cursor" mode. Executes the pipeline up to the cursor as you type (requires confirmation). |
-| `F12` | Toggle "Live Full" mode. Executes the entire pipeline as you type (requires confirmation). |
+| `F11` | Toggle "Live Until Cursor" mode. Executes the pipeline up to the cursor as you type (requires confirmation). When already in "Live Full", switches to "Live Until Cursor". |
+| `F12` | Toggle "Live Full" mode. Executes the entire pipeline as you type (requires confirmation). When already in "Live Until Cursor", switches to "Live Full". |
+
+### Diff
+
+| Key | Action |
+| --- | --- |
+| `Alt + d` | Toggle diff mode. Shows a line-based diff between the diff base and the current output. |
+| `Alt + /` | Set the current subcommand's output as the diff base. |
+| `Alt + ?` | Reset the diff base back to the original stdin. |
 
 ### Command Input & Subcommands
 
@@ -229,10 +238,14 @@ Available theme keys:
 | `cmd_highlight_current` | Style for the current subcommand during execution. |
 | `cmd_quoted` | Style for quoted strings. |
 | `cmd_invalid` | Style for invalid subcommands (if parsing fails). |
+| `cmd_diff_base` | Style for the subcommand currently marked as the diff base. |
 | `output_highlight` | Style for search results in the output. |
 | `output_highlight_current` | Style for the currently selected search result. |
 | `line_nums` | Style for line numbers in the output. |
 | `popup` | Style for popups (e.g., help, save, live mode confirmation). |
+| `diff_addition` | Style for lines added in diff mode. |
+| `diff_deletion` | Style for lines removed in diff mode. |
+| `diff_equal` | Style for unchanged lines in diff mode. |
 
 ```toml
 [theme.cmd_highlight]
