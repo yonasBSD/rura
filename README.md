@@ -29,6 +29,9 @@ Rura transforms the tedious "edit, up-arrow, rerun" shell cycle into a fluid, in
 
 ![Made with VHS](https://vhs.charm.sh/vhs-62Hf1lkCtIMz5DDCeZ0uFr.gif)
 
+**Diff Mode**
+![Made with VHS](https://vhs.charm.sh/vhs-3LJycZIMoAJjLqwmpboLdp.gif)
+
 **History**
 
 ![Made with VHS](https://vhs.charm.sh/vhs-7m80OhHcR9MohlEa32I1WI.gif)
