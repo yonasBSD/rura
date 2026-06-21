@@ -765,24 +765,58 @@ impl App {
 
         frame.render_widget(&self.output_widget, output_area);
 
-        let [_, exec_area, _, hints_area, lines_area, _] = Layout::default()
+        let [
+            _,
+            status_left_area,
+            status_center_area,
+            status_right_area,
+            _,
+        ] = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(vec![
                 Constraint::Length(1),
-                Constraint::Length(4),
-                Constraint::Length(1),
                 Constraint::Fill(1),
-                Constraint::Length(self.output_widget.output_len().to_string().len() as u16 + 3),
+                Constraint::Fill(1),
+                Constraint::Fill(1),
                 Constraint::Length(1),
             ])
             .areas(status_area);
 
-        frame.render_widget(self.hints_widget(), hints_area);
+        let [exec_area, _, diff_area, _, live_area] = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![
+                Constraint::Length(3),
+                Constraint::Length(1), // separator
+                Constraint::Length(4),
+                Constraint::Length(1), // separator
+                Constraint::Length(7),
+            ])
+            .areas(status_left_area);
+
+        let [_, lines_area] = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![
+                Constraint::Fill(1), // fill space to the left
+                Constraint::Length(self.output_widget.output_len().to_string().len() as u16 + 3),
+            ])
+            .areas(status_right_area);
+
+        frame.render_widget(self.hints_widget(), status_center_area);
 
         match self.output_widget.content_mode {
             ContentMode::Normal => {}
             ContentMode::Diff => {
-                frame.render_widget("diff".reversed(), exec_area);
+                frame.render_widget("diff".reversed(), diff_area);
+            }
+        }
+
+        match self.input_mode {
+            InputMode::Normal => {}
+            InputMode::LiveFull => {
+                frame.render_widget("live".reversed(), live_area);
+            }
+            InputMode::LiveUntilCursor => {
+                frame.render_widget("live uc".reversed(), live_area);
             }
         }
 
