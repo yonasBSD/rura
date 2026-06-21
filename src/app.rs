@@ -512,28 +512,6 @@ impl App {
             (F(1), KeyModifiers::NONE) => {
                 self.active_modal = ActiveModal::Help;
             }
-            (F(11), KeyModifiers::NONE) => match self.input_mode {
-                InputMode::Normal => {
-                    self.active_modal = ActiveModal::LiveConfirmation(InputMode::LiveUntilCursor);
-                }
-                InputMode::LiveFull => {
-                    self.input_mode = InputMode::LiveUntilCursor;
-                }
-                InputMode::LiveUntilCursor => {
-                    self.input_mode = InputMode::Normal;
-                }
-            },
-            (F(12), KeyModifiers::NONE) => match self.input_mode {
-                InputMode::Normal => {
-                    self.active_modal = ActiveModal::LiveConfirmation(InputMode::LiveFull);
-                }
-                InputMode::LiveFull => {
-                    self.input_mode = InputMode::Normal;
-                }
-                InputMode::LiveUntilCursor => {
-                    self.input_mode = InputMode::LiveFull;
-                }
-            },
             _ => match to_ui_command(&self.key_bindings, code, mods) {
                 Some(ui_cmd) => match ui_cmd {
                     UiCmd::Quit => {
@@ -646,6 +624,29 @@ impl App {
                             self.rura_widget.diff_base_subcommand = Some(idx);
                         }
                     }
+                    UiCmd::ToggleLive => match self.input_mode {
+                        InputMode::Normal => {
+                            self.active_modal = ActiveModal::LiveConfirmation(InputMode::LiveFull);
+                        }
+                        InputMode::LiveFull => {
+                            self.input_mode = InputMode::Normal;
+                        }
+                        InputMode::LiveUntilCursor => {
+                            self.input_mode = InputMode::LiveFull;
+                        }
+                    },
+                    UiCmd::ToggleLiveUntilCursor => match self.input_mode {
+                        InputMode::Normal => {
+                            self.active_modal =
+                                ActiveModal::LiveConfirmation(InputMode::LiveUntilCursor);
+                        }
+                        InputMode::LiveFull => {
+                            self.input_mode = InputMode::LiveUntilCursor;
+                        }
+                        InputMode::LiveUntilCursor => {
+                            self.input_mode = InputMode::Normal;
+                        }
+                    },
                 },
                 _ => {
                     if self.rura_widget.handle_event(event) {

@@ -124,6 +124,8 @@ pub struct KeyBindingsConfig {
     pub toggle_diff: Vec<String>,
     pub diff_base: Vec<String>,
     pub diff_base_stdin: Vec<String>,
+    pub toggle_live: Vec<String>,
+    pub toggle_live_until_cursor: Vec<String>,
 }
 
 impl Default for KeyBindingsConfig {
@@ -170,6 +172,8 @@ impl Default for KeyBindingsConfig {
             toggle_diff: vec!["alt+d".into()],
             diff_base: vec!["alt+/".into()],
             diff_base_stdin: vec!["alt+?".into()],
+            toggle_live: vec!["f12".into()],
+            toggle_live_until_cursor: vec!["shift+f12".into()],
         }
     }
 }

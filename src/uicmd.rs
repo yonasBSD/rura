@@ -36,6 +36,8 @@ pub enum UiCmd {
     ToggleDiff,
     DiffBase,
     DiffBaseStdin,
+    ToggleLive,
+    ToggleLiveUntilCursor,
 }
 
 pub struct KeyBindings {
@@ -105,6 +107,11 @@ impl KeyBindings {
         bindings.insert(
             UiCmd::DiffBaseStdin,
             parse_bindings(&config.diff_base_stdin),
+        );
+        bindings.insert(UiCmd::ToggleLive, parse_bindings(&config.toggle_live));
+        bindings.insert(
+            UiCmd::ToggleLiveUntilCursor,
+            parse_bindings(&config.toggle_live_until_cursor),
         );
 
         KeyBindings { bindings }
