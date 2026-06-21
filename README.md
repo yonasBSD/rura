@@ -1,4 +1,4 @@
-<img src="rura.svg" height="80">
+<p align="center"><img src="rura.svg" height="80"></p>
 
 Rura is a terminal UI for building shell pipelines. Edit a pipe like `grep | sort | uniq`, see the output update live, inspect any stage's output, and diff between runs — replacing the usual edit, up-arrow, rerun loop.
 
