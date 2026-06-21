@@ -134,20 +134,20 @@ rura --last
 
 ### Navigation & View
 
-| Key                                                                                       | Action |
-|-------------------------------------------------------------------------------------------| --- |
-| `Arrows` <br> `Alt + h / j / k / l`                                                       |Scroll the output (Left, Down, Up, Right). |
+| Key | Action |
+| --- | --- |
+| `Arrows` <br> `Alt + h / j / k / l` | Scroll the output (Left, Down, Up, Right). |
 | `PageUp / PageDown` <br> `Alt + Up / Down` <br> `Alt + Shift + j / k` <br> `Ctrl + u / d` | Scroll the output up/down by page. |
-| `Alt + Shift + h / l`                                                                     | Scroll the output left/right by page. |
-| `Alt + w`                                                                                 | Toggle line wrapping. |
+| `Alt + Shift + h / l` | Scroll the output left/right by page. |
+| `Alt + w` | Toggle line wrapping. |
 
 ### Search
 
-| Key                           | Action |
-|-------------------------------| --- |
+| Key | Action |
+| --- | --- |
 | `F3 / F4` <br> `Ctrl + f / b` | Search forward or backward in the output. |
-| `Alt + x`                     | Toggle regex mode. |
-| `Alt + c`                     | Toggle case sensitivity. |
+| `Alt + x` | Toggle regex mode. |
+| `Alt + c` | Toggle case sensitivity. |
 
 ### Live Execution Modes
 
@@ -166,19 +166,19 @@ rura --last
 
 ### Command Input & Subcommands
 
-| Key                              | Action |
-|----------------------------------| --- |
-| `Tab`                            | Trigger forward command or file completion (requires `bash`, `zsh`, or `fish` available). |
-| `Shift + Tab`                    | Trigger backward command or file completion. |
-| `Alt + Right`                    | Move cursor to the next subcommand. |
-| `Alt + Left`                     | Move cursor to the previous subcommand. |
-| `Alt + o`                        | Format the command pipeline. |
-| `Alt + c`                        | Copy the current subcommand. |
-| `Alt + x`                        | Cut the current subcommand. |
-| `Alt + v`                        | Paste the copied/cut subcommand after the current one. |
+| Key | Action |
+| --- | --- |
+| `Tab` | Trigger forward command or file completion (requires `bash`, `zsh`, or `fish` available). |
+| `Shift + Tab` | Trigger backward command or file completion. |
+| `Alt + Right` | Move cursor to the next subcommand. |
+| `Alt + Left` | Move cursor to the previous subcommand. |
+| `Alt + o` | Format the command pipeline. |
+| `Alt + c` | Copy the current subcommand. |
+| `Alt + x` | Cut the current subcommand. |
+| `Alt + v` | Paste the copied/cut subcommand after the current one. |
 | `Home / End` <br> `Ctrl + a / e` | Move cursor to the beginning or end of the command line. |
-| `Ctrl + p`                       | Previous command in history. |
-| `Ctrl + n`                       | Next command in history. |
+| `Ctrl + p` | Previous command in history. |
+| `Ctrl + n` | Next command in history. |
 
 ### Saving to File
 
@@ -214,14 +214,14 @@ The configuration path is determined as follows:
 
 ### General Options
 
-| Option | Description                                                                                       |
-| --- |---------------------------------------------------------------------------------------------------|
-| `shell` | The shell to use for execution and completions (e.g., `"bash"`, `"zsh"`, `"fish"`, `"nu"`).           |
-| `command_line_placement` | Set to `"top"` or `"bottom"` (default) to change where the input field is rendered.               |
+| Option | Description |
+| --- | --- |
+| `shell` | The shell to use for execution and completions (e.g., `"bash"`, `"zsh"`, `"fish"`, `"nu"`). |
+| `command_line_placement` | Set to `"top"` or `"bottom"` (default) to change where the input field is rendered. |
 | `highlight_duration_ms` | Duration in milliseconds for the temporary highlighting when executing commands (default: `250`). |
-| `debounce_duration_ms` | Duration in milliseconds to wait before executing commands in live mode (default: `500`).         |
-| `no_cache` | Disable caching of command output when set to `true` (default: `false`).                          |
-| `log_level` | Set the logging level (e.g., `"info"`, `"debug"`, `"error"`). Default is `"info"`.                |
+| `debounce_duration_ms` | Duration in milliseconds to wait before executing commands in live mode (default: `500`). |
+| `no_cache` | Disable caching of command output when set to `true` (default: `false`). |
+| `log_level` | Set the logging level (e.g., `"info"`, `"debug"`, `"error"`). Default is `"info"`. |
 
 ### Customizing Key Bindings
 
