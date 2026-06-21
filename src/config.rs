@@ -37,6 +37,13 @@ impl StyleConfig {
             ..Default::default()
         }
     }
+
+    fn underlined(self) -> Self {
+        StyleConfig {
+            underlined: Some(true),
+            ..self
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -50,6 +57,7 @@ pub struct ThemeConfig {
     pub cmd_highlight_current: StyleConfig,
     pub cmd_quoted: StyleConfig,
     pub cmd_invalid: StyleConfig,
+    pub cmd_diff_base: StyleConfig,
     pub output_highlight: StyleConfig,
     pub output_highlight_current: StyleConfig,
     pub line_nums: StyleConfig,
@@ -70,6 +78,7 @@ impl Default for ThemeConfig {
             cmd_highlight_current: StyleConfig::fg_bg("black", "yellow"),
             cmd_quoted: StyleConfig::fg("yellow"),
             cmd_invalid: StyleConfig::default(),
+            cmd_diff_base: StyleConfig::default().underlined(),
             output_highlight: StyleConfig::fg_bg("white", "magenta"),
             output_highlight_current: StyleConfig::fg_bg("black", "yellow"),
             line_nums: StyleConfig::fg("magenta"),
@@ -112,6 +121,9 @@ pub struct KeyBindingsConfig {
     pub subcommand_cut: Vec<String>,
     pub subcommand_copy: Vec<String>,
     pub subcommand_paste: Vec<String>,
+    pub toggle_diff: Vec<String>,
+    pub diff_base: Vec<String>,
+    pub diff_base_stdin: Vec<String>,
 }
 
 impl Default for KeyBindingsConfig {
@@ -155,6 +167,9 @@ impl Default for KeyBindingsConfig {
             subcommand_cut: vec!["alt+x".into()],
             subcommand_copy: vec!["alt+c".into()],
             subcommand_paste: vec!["alt+v".into()],
+            toggle_diff: vec!["alt+d".into()],
+            diff_base: vec!["alt+/".into()],
+            diff_base_stdin: vec!["alt+?".into()],
         }
     }
 }

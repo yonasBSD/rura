@@ -8,7 +8,7 @@ use crate::debouncer::debouncer_task;
 use crate::file_saver::{FileSaver, FileSavers};
 use crate::help_widget::HelpWidget;
 use crate::history::History;
-use crate::output_widget::{ErrorPanePlacement, OutputWidget};
+use crate::output_widget::{ContentMode, ErrorPanePlacement, OutputWidget};
 use crate::rura::{ExecuteType, RuraCommand};
 use crate::rura_widget::RuraWidget;
 use crate::save_to_file_widget::SaveToFileWidget;
@@ -163,6 +163,7 @@ impl App {
                 history: History::using_file(),
                 highlight_reset_tx,
                 failed_subcommand: None,
+                diff_base_subcommand: None,
                 copied: None,
             },
             output_widget: OutputWidget::new(
@@ -505,9 +506,6 @@ impl App {
 
     fn handle_event_normal(&mut self, event: &Event, code: KeyCode, mods: KeyModifiers) {
         match (code, mods) {
-            (Char('d'), KeyModifiers::ALT) => {
-                self.output_widget.toggle_diff();
-            }
             (Esc, KeyModifiers::NONE) => {
                 self.output_widget.clear_highlight();
             }
@@ -624,6 +622,29 @@ impl App {
                     }
                     UiCmd::FormatCommand => {
                         self.rura_widget.format();
+                    }
+                    UiCmd::ToggleDiff => {
+                        self.output_widget.toggle_diff();
+                        match self.output_widget.content_mode {
+                            ContentMode::Normal => {
+                                self.rura_widget.diff_base_subcommand = None;
+                            }
+                            ContentMode::Diff => {
+                                self.rura_widget.diff_base_subcommand =
+                                    self.output_widget.diff_base();
+                            }
+                        }
+                    }
+                    UiCmd::DiffBaseStdin => {
+                        self.output_widget.set_diff_base(None);
+                        self.rura_widget.diff_base_subcommand = None;
+                    }
+                    UiCmd::DiffBase => {
+                        let idx = self.rura_widget.current_index();
+                        if let Some(idx) = idx {
+                            self.output_widget.set_diff_base(Some(idx));
+                            self.rura_widget.diff_base_subcommand = Some(idx);
+                        }
                     }
                 },
                 _ => {
@@ -756,6 +777,13 @@ impl App {
             .areas(status_area);
 
         frame.render_widget(self.hints_widget(), hints_area);
+
+        match self.output_widget.content_mode {
+            ContentMode::Normal => {}
+            ContentMode::Diff => {
+                frame.render_widget("diff".reversed(), exec_area);
+            }
+        }
 
         // Render progress indicator only if command runs for more than defined time
         // It reduces flickering when command is fast and progress indicator is not needed.
@@ -982,6 +1010,7 @@ mod tests {
                     history: History::in_mem(),
                     highlight_reset_tx,
                     failed_subcommand: None,
+                    diff_base_subcommand: None,
                     copied: None,
                 },
                 output_widget: OutputWidget::new(&theme_config, ErrorPanePlacement::Bottom),

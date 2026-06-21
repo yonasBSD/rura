@@ -33,6 +33,9 @@ pub enum UiCmd {
     SubcommandCut,
     SubcommandCopy,
     SubcommandPaste,
+    ToggleDiff,
+    DiffBase,
+    DiffBaseStdin,
 }
 
 pub struct KeyBindings {
@@ -96,6 +99,12 @@ impl KeyBindings {
         bindings.insert(
             UiCmd::SubcommandPaste,
             parse_bindings(&config.subcommand_paste),
+        );
+        bindings.insert(UiCmd::ToggleDiff, parse_bindings(&config.toggle_diff));
+        bindings.insert(UiCmd::DiffBase, parse_bindings(&config.diff_base));
+        bindings.insert(
+            UiCmd::DiffBaseStdin,
+            parse_bindings(&config.diff_base_stdin),
         );
 
         KeyBindings { bindings }

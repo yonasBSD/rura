@@ -23,7 +23,8 @@ pub struct OutputWidget {
     theme: Theme,
     error_pane_placement: ErrorPanePlacement,
     cmd_result: CmdResult,
-    content_mode: ContentMode,
+    pub content_mode: ContentMode,
+    diff_base: Option<usize>,
     diff_ready: bool,
 }
 
@@ -80,6 +81,7 @@ impl OutputWidget {
                 outputs: vec![],
             },
             content_mode: ContentMode::Normal,
+            diff_base: None,
             diff_ready: false,
         }
     }
@@ -94,53 +96,55 @@ impl OutputWidget {
         }
     }
 
+    pub fn diff_base(&self) -> Option<usize> {
+        self.diff_base
+    }
+
     pub fn diff(&mut self) {
         let now = std::time::Instant::now();
         if self.diff_ready {
             return;
         }
-        if self.cmd_result.outputs.is_empty() {
-            return;
-        }
-        match self.cmd_result.outputs.last() {
-            Some(Output::Ok(bytes)) => {
-                let stdin_bytes = self.cmd_result.stdin.as_ref();
-
-                debug!(
-                    "Diffing two outputs of size: {} and {}",
-                    stdin_bytes.len(),
-                    bytes.len()
-                );
-
-                let old = String::from_utf8_lossy(&stdin_bytes);
-                let new = String::from_utf8_lossy(&bytes);
-
-                let text_diff: TextDiff<str> = TextDiff::configure()
-                    .algorithm(Algorithm::Patience)
-                    .timeout(Duration::from_millis(5000))
-                    .diff_lines(&old, &new);
-
-                debug!("Diff {}", now.elapsed().as_millis());
-
-                let old_lines = old.lines().collect_vec();
-                let new_lines = new.lines().collect_vec();
-
-                let lines: Vec<(ChangeTag, String)> = text_diff
-                    .ops()
-                    .into_iter()
-                    .flat_map(|op| {
-                        op.iter_slices(&old_lines, &new_lines)
-                            .flat_map(|(tag, slice)| {
-                                slice.iter().map(move |&s| (tag, s.to_string()))
-                            })
-                    })
-                    .collect_vec();
-
-                self.diff_ready = true;
-                self.diff.with_content(lines);
+        let ok_bytes = self.cmd_result.ok_bytes();
+        let last_bytes = ok_bytes.last().unwrap_or(&self.cmd_result.stdin);
+        let stdin_bytes = if let Some(base) = self.diff_base {
+            if let Some(b) = self.cmd_result.outputs.get(base) {
+                if let Output::Ok(b) = b {
+                    b.as_ref()
+                } else {
+                    return;
+                }
+            } else {
+                return;
             }
-            _ => {}
-        }
+        } else {
+            self.cmd_result.stdin.as_ref()
+        };
+
+        let old = String::from_utf8_lossy(&stdin_bytes);
+        let new = String::from_utf8_lossy(&last_bytes);
+
+        let text_diff: TextDiff<str> = TextDiff::configure()
+            .algorithm(Algorithm::Patience)
+            .timeout(Duration::from_millis(5000))
+            .diff_lines(&old, &new);
+
+        debug!("Diff took {}ms", now.elapsed().as_millis());
+
+        let old_lines = old.lines().collect_vec();
+        let new_lines = new.lines().collect_vec();
+
+        let lines: Vec<(ChangeTag, String)> = text_diff
+            .ops()
+            .into_iter()
+            .flat_map(|op| {
+                op.iter_slices(&old_lines, &new_lines)
+                    .flat_map(|(tag, slice)| slice.iter().map(move |&s| (tag, s.to_string())))
+            })
+            .collect_vec();
+
+        self.diff_ready = true;
+        self.diff.with_content(lines);
     }
 
     pub fn highlight_info(&self) -> (usize, usize) {
@@ -148,6 +152,13 @@ impl OutputWidget {
             ContentMode::Normal => self.content.highlight_info(),
             ContentMode::Diff => self.diff.highlight_info(),
         }
+    }
+
+    pub fn set_diff_base(&mut self, base: Option<usize>) {
+        self.diff_base = base;
+        self.content_mode = ContentMode::Diff;
+        self.diff_ready = false;
+        self.diff();
     }
 
     pub fn clear_highlight(&mut self) {

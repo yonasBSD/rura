@@ -36,6 +36,18 @@ pub struct CmdResult {
 }
 
 impl CmdResult {
+    pub fn ok_bytes(&self) -> Vec<Arc<[u8]>> {
+        self.outputs
+            .clone()
+            .into_iter()
+            .map_while(|output| match output {
+                Output::Ok(bytes) => Some(bytes),
+                Output::Err(_, _) => None,
+            })
+            .collect_vec()
+    }
+
+    // todo if there's any Err output then it's always the last one
     pub fn failed_subcommand(&self) -> Option<usize> {
         self.outputs
             .iter()

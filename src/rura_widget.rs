@@ -22,6 +22,7 @@ pub struct RuraWidget {
     pub history: History,
     pub highlight_reset_tx: Sender<()>,
     pub failed_subcommand: Option<usize>,
+    pub diff_base_subcommand: Option<usize>,
     pub copied: Option<String>,
 }
 
@@ -35,7 +36,13 @@ impl Widget for &RuraWidget {
                 self.command_input.value(),
                 self.command_input.visual_cursor(),
             ) {
-                Ok(r) => to_line(r, self.highlight_until, self.failed_subcommand, &self.theme),
+                Ok(r) => to_line(
+                    r,
+                    self.highlight_until,
+                    self.failed_subcommand,
+                    self.diff_base_subcommand,
+                    &self.theme,
+                ),
                 Err(_) => Line::from(self.command_input.value()),
             }
         };
@@ -121,6 +128,17 @@ impl RuraWidget {
                 self.command_input.with_value(r.to_string());
                 self.command_input.handle(InputRequest::SetCursor(cursor));
             }
+        }
+    }
+
+    pub fn current_index(&mut self) -> Option<usize> {
+        if let Ok(r) = Rura::new(
+            self.command_input.value(),
+            self.command_input.visual_cursor(),
+        ) {
+            Some(r.current())
+        } else {
+            None
         }
     }
 
@@ -212,6 +230,7 @@ fn to_line<'a>(
     r: Rura,
     highlight_until: Option<usize>,
     highlight_failed: Option<usize>,
+    highlight_base: Option<usize>,
     theme: &Theme,
 ) -> Line<'a> {
     let mut spans = vec![];
@@ -229,7 +248,7 @@ fn to_line<'a>(
             spans.push("|".set_style(pipe_style));
         }
 
-        let base_style = if is_highlighted {
+        let mut base_style = if is_highlighted {
             if is_current {
                 theme.cmd_highlight_current
             } else {
@@ -240,6 +259,12 @@ fn to_line<'a>(
         } else {
             theme.cmd_regular
         };
+
+        if let Some(diff_base_subcommand) = highlight_base {
+            if index == diff_base_subcommand {
+                base_style = base_style.patch(theme.cmd_diff_base)
+            }
+        }
 
         let parts = split_quoted_parts(subcommand);
 
@@ -327,6 +352,7 @@ mod tests {
                 history: History::in_mem(),
                 highlight_reset_tx,
                 failed_subcommand: None,
+                diff_base_subcommand: None,
                 copied: None,
             }
         }
