@@ -851,26 +851,6 @@ impl App {
         spans.push(" Execute ".into());
         spans.push("F1".bold());
         spans.push(" Help ".into());
-        spans.push("F11 ".bold());
-        match self.input_mode {
-            InputMode::Normal | InputMode::LiveFull => {
-                spans.push("Live UC".into());
-            }
-            InputMode::LiveUntilCursor => {
-                spans.push("Live UC".reversed());
-            }
-        }
-
-        spans.push(" ".into());
-        spans.push("F12 ".bold());
-        match self.input_mode {
-            InputMode::Normal | InputMode::LiveUntilCursor => {
-                spans.push("Live".into());
-            }
-            InputMode::LiveFull => {
-                spans.push("Live".reversed());
-            }
-        }
 
         Line::from_iter(spans).centered().dim()
     }

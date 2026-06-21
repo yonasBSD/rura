@@ -172,8 +172,8 @@ impl Default for KeyBindingsConfig {
             toggle_diff: vec!["alt+d".into()],
             diff_base: vec!["alt+/".into()],
             diff_base_stdin: vec!["alt+?".into()],
+            toggle_live_until_cursor: vec!["f11".into()],
             toggle_live: vec!["f12".into()],
-            toggle_live_until_cursor: vec!["shift+f12".into()],
         }
     }
 }
