@@ -82,6 +82,12 @@ yay -S rura-bin
 yay -S rura-git
 ```
 
+**NixOS**:
+```aiignore
+nix-shell -p rura
+```
+For other Nix-based installation methods and options, see [search.nixos.org](https://search.nixos.org/packages?channel=unstable&query=rura#show=rura).
+
 **Cargo**:
 ```bash
 # From crates.io
