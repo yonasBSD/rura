@@ -9,6 +9,7 @@ use crate::file_saver::{FileSaver, FileSavers};
 use crate::help_widget::HelpWidget;
 use crate::history::History;
 use crate::output_widget::{ContentMode, ErrorPanePlacement, OutputWidget};
+use crate::presets_widget::{DisplayMode, PresetsWidget};
 use crate::rura::{ExecuteType, RuraCommand};
 use crate::rura_widget::RuraWidget;
 use crate::save_to_file_widget::SaveToFileWidget;
@@ -17,7 +18,7 @@ use crate::shell::cmd_runner::{CmdResult, CmdRunner, CmdRunners};
 use crate::shell::output::Output;
 use crate::theme::Theme;
 use crate::uicmd::{KeyBindings, UiCmd, to_ui_command};
-use KeyCode::{Enter, Esc, F};
+use KeyCode::{Enter, Esc, F, Tab};
 use anyhow::{Error, Result};
 use cfg_if::cfg_if;
 use crossterm::event::KeyCode::Char;
@@ -51,6 +52,7 @@ pub struct App {
     help_widget: HelpWidget,
     save_output_widget: SaveToFileWidget,
     save_command_widget: SaveToFileWidget,
+    presets_widget: PresetsWidget,
     action_rx: Receiver<Action>,
     command_tx: Sender<RuraCommand>,
     key_bindings: KeyBindings,
@@ -184,6 +186,7 @@ impl App {
                 shell.clone(),
                 Theme::from_config(&config.theme),
             ),
+            presets_widget: PresetsWidget::new(Theme::from_config(&config.theme)),
             action_rx,
             command_tx,
             debouncer_tx,
@@ -282,6 +285,7 @@ impl App {
                     ActiveModal::Help => self.handle_event_help(code, mods),
                     ActiveModal::SaveOutput => self.handle_event_save_output(event, code, mods),
                     ActiveModal::SaveCommand => self.handle_event_save_command(event, code, mods),
+                    ActiveModal::Presets => self.handle_event_presets(event, code, mods),
                 }
             }
             _ => {}
@@ -348,6 +352,109 @@ impl App {
                 _ => {
                     self.save_output_widget.file_path_input.handle_event(event);
                 }
+            },
+        }
+    }
+
+    fn handle_event_presets(&mut self, event: &Event, code: KeyCode, mods: KeyModifiers) {
+        match self.presets_widget.display_mode {
+            DisplayMode::Select => match (code, mods) {
+                (Esc, KeyModifiers::NONE) => {
+                    self.active_modal = ActiveModal::default();
+                }
+                (Enter, KeyModifiers::NONE) => {
+                    if let Some(preset) = self.presets_widget.confirm() {
+                        self.rura_widget
+                            .insert_after_current(&format!(" {} ", preset));
+                        self.active_modal = ActiveModal::default();
+                    }
+                }
+                (Enter, KeyModifiers::ALT) => {
+                    if let Some(preset) = self.presets_widget.confirm() {
+                        self.rura_widget
+                            .insert_before_current(&format!(" {} ", preset));
+                        self.active_modal = ActiveModal::default();
+                    }
+                }
+                (KeyCode::Up, KeyModifiers::NONE) => self.presets_widget.previous(),
+                (KeyCode::Down, KeyModifiers::NONE) => self.presets_widget.next(),
+                (Char('t'), KeyModifiers::CONTROL) => {
+                    self.presets_widget
+                        .new_from(self.rura_widget.command_input.value());
+                }
+                (Char('n'), KeyModifiers::CONTROL) => {
+                    self.presets_widget.new_empty();
+                }
+                (Char('d'), KeyModifiers::CONTROL) => {
+                    self.presets_widget.confirm_delete();
+                }
+                (Char('e'), KeyModifiers::CONTROL) => {
+                    self.presets_widget.edit();
+                }
+                (Char('k'), KeyModifiers::CONTROL) => {
+                    self.presets_widget.clone();
+                }
+                (KeyCode::Up, KeyModifiers::CONTROL) => {
+                    self.presets_widget.move_up();
+                }
+                (KeyCode::Down, KeyModifiers::CONTROL) => {
+                    self.presets_widget.move_down();
+                }
+                (Char(ch), KeyModifiers::NONE) if ch.is_lowercase() => {
+                    if let Some(preset) = self.presets_widget.find_by_shortcut(ch) {
+                        self.rura_widget
+                            .insert_after_current(&format!(" {} ", preset));
+                        self.active_modal = ActiveModal::default();
+                    }
+                }
+                (Char(ch), KeyModifiers::SHIFT) => {
+                    if let Some(preset) = self
+                        .presets_widget
+                        .find_by_shortcut(ch.to_lowercase().next().unwrap())
+                    {
+                        self.rura_widget
+                            .insert_before_current(&format!(" {} ", preset));
+                        self.active_modal = ActiveModal::default();
+                    }
+                }
+                _ => match to_ui_command(&self.key_bindings, code, mods) {
+                    Some(UiCmd::Quit) => {
+                        self.exit = true;
+                    }
+                    Some(UiCmd::TogglePresets) => {
+                        self.active_modal = ActiveModal::default();
+                    }
+                    _ => {}
+                },
+            },
+            DisplayMode::ConfirmDelete(_) => match (code, mods) {
+                (Esc | Char('n'), KeyModifiers::NONE) => self.presets_widget.cancel_delete(),
+                (Char('y'), KeyModifiers::NONE) => {
+                    self.presets_widget.delete();
+                }
+                _ => match to_ui_command(&self.key_bindings, code, mods) {
+                    Some(UiCmd::Quit) => {
+                        self.exit = true;
+                    }
+                    _ => {}
+                },
+            },
+            DisplayMode::Edit(_) => match (code, mods) {
+                (Esc, KeyModifiers::NONE) => self.presets_widget.cancel_edit(),
+                (Tab, KeyModifiers::NONE) => {
+                    self.presets_widget.toggle_edit_mode();
+                }
+                (Enter, KeyModifiers::NONE) => {
+                    self.presets_widget.save_edit();
+                }
+                _ => match to_ui_command(&self.key_bindings, code, mods) {
+                    Some(UiCmd::Quit) => {
+                        self.exit = true;
+                    }
+                    _ => {
+                        self.presets_widget.handle_event(&event);
+                    }
+                },
             },
         }
     }
@@ -647,6 +754,10 @@ impl App {
                             self.input_mode = InputMode::Normal;
                         }
                     },
+                    UiCmd::TogglePresets => {
+                        self.presets_widget.load();
+                        self.active_modal = ActiveModal::Presets;
+                    }
                 },
                 _ => {
                     if self.rura_widget.handle_event(event) {
@@ -852,6 +963,12 @@ impl App {
                     .render(frame.area(), frame.buffer_mut());
                 frame.set_cursor_position(self.save_command_widget.cursor())
             }
+            ActiveModal::Presets => {
+                self.presets_widget.render(frame.area(), frame.buffer_mut());
+                if let Some(cursor) = self.presets_widget.cursor() {
+                    frame.set_cursor_position(cursor)
+                }
+            }
             _ => {}
         }
     }
@@ -1039,6 +1156,7 @@ mod tests {
                     "".into(),
                     Theme::from_config(&theme_config),
                 ),
+                presets_widget: PresetsWidget::new(Theme::from_config(&theme_config)),
                 search_widget: SearchWidget::default(),
                 action_rx,
                 command_tx,
@@ -1291,4 +1409,5 @@ enum ActiveModal {
     Help,
     SaveOutput,
     SaveCommand,
+    Presets,
 }

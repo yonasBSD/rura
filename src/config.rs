@@ -126,6 +126,7 @@ pub struct KeyBindingsConfig {
     pub diff_base_stdin: Vec<String>,
     pub toggle_live: Vec<String>,
     pub toggle_live_until_cursor: Vec<String>,
+    pub toggle_presets: Vec<String>,
 }
 
 impl Default for KeyBindingsConfig {
@@ -174,6 +175,7 @@ impl Default for KeyBindingsConfig {
             diff_base_stdin: vec!["alt+?".into()],
             toggle_live_until_cursor: vec!["f11".into()],
             toggle_live: vec!["f12".into()],
+            toggle_presets: vec!["alt+p".into()],
         }
     }
 }

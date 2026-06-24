@@ -190,7 +190,7 @@ impl Rura {
         }
     }
 
-    #[allow(dead_code)]
+    // todo return cursor position
     pub fn insert_before(&mut self, insert: &str) {
         self.subcommands.insert(self.current, insert.to_owned());
     }

@@ -155,6 +155,28 @@ impl RuraWidget {
         }
     }
 
+    pub fn insert_after_current(&mut self, value: &str) {
+        if let Ok(mut r) = Rura::new(
+            self.command_input.value(),
+            self.command_input.visual_cursor(),
+        ) {
+            let cursor = r.insert_after(value);
+            self.command_input.with_value(r.to_string());
+            self.command_input.handle(InputRequest::SetCursor(cursor));
+        }
+    }
+
+    pub fn insert_before_current(&mut self, value: &str) {
+        if let Ok(mut r) = Rura::new(
+            self.command_input.value(),
+            self.command_input.visual_cursor(),
+        ) {
+            let _cursor = r.insert_before(value);
+            self.command_input.with_value(r.to_string());
+            // self.command_input.handle(InputRequest::SetCursor(cursor));
+        }
+    }
+
     pub fn history_next(&mut self) {
         self.command_input
             .with_value(self.history.next(self.command_input.value()));

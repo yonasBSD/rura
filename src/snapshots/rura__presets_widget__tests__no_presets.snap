@@ -1,0 +1,14 @@
+---
+source: src/presets_widget.rs
+expression: terminal.backend()
+---
+"                                        "
+"                                        "
+"                                        "
+"                                        "
+"            ┌ Presets ──────┐           "
+"            └───────────────┘           "
+"                                        "
+"                                        "
+"                                        "
+"                                        "

@@ -4,6 +4,7 @@ expression: terminal.backend()
 ---
 "                           ┌ Keys ──────────────────────────────────────┐                           "
 "                           │                                            │                           "
+"                           │                  Commands                  │                           "
 "                           │enter        - Execute full command         │                           "
 "                           │alt+\        - Execute until cursor         │                           "
 "                           │alt+|        - Execute before cursor        │                           "
@@ -12,8 +13,7 @@ expression: terminal.backend()
 "                           │f12          - Toggle Live mode             │                           "
 "                           │f11          - Toggle Live Until Cursor mode│                           "
 "                           │                                            │                           "
-"                           │ctrl+s       - Save output to file          │                           "
-"┌──────────────────────────│ctrl+alt+s   - Save command to file         │──────────────────────────┐"
-"│                          │                                            │                          │"
+"┌──────────────────────────│              Subcommand edit               │──────────────────────────┐"
+"│                          │alt+left     - Go to previous subcommand    │                          │"
 "└──────────────────────────│                     ▼                      │──────────────────────────┘"
 "                           └────────────────────────────────────────────┘                       L:0 "

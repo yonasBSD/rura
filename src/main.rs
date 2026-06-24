@@ -9,6 +9,8 @@ mod file_saver;
 mod help_widget;
 mod history;
 mod output_widget;
+mod presets;
+mod presets_widget;
 mod props;
 mod rura;
 mod rura_widget;
