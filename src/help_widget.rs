@@ -80,6 +80,7 @@ impl HelpWidget {
             Line::from(format!("{:012} - Scroll left",self.kb_config.scroll_left.first().unwrap().to_string())),
             Line::from(""),
             Line::from(format!("{:012} - Wrap output lines",self.kb_config.toggle_wrap.first().unwrap().to_string())),
+            Line::from(format!("{:012} - Toggle line numbers",self.kb_config.toggle_line_nums.first().unwrap().to_string())),
             Line::from(""),
             Line::from("Presets").reversed().centered(),
             Line::from("ctrl+n       - Create new preset".to_string()),

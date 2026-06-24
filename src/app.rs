@@ -758,6 +758,9 @@ impl App {
                         self.presets_widget.load();
                         self.active_modal = ActiveModal::Presets;
                     }
+                    UiCmd::ToggleLineNums => {
+                        self.output_widget.toggle_line_nums();
+                    }
                 },
                 _ => {
                     if self.rura_widget.handle_event(event) {

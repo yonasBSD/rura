@@ -39,6 +39,7 @@ pub enum UiCmd {
     ToggleLive,
     ToggleLiveUntilCursor,
     TogglePresets,
+    ToggleLineNums,
 }
 
 pub struct KeyBindings {
@@ -115,6 +116,10 @@ impl KeyBindings {
             parse_bindings(&config.toggle_live_until_cursor),
         );
         bindings.insert(UiCmd::TogglePresets, parse_bindings(&config.toggle_presets));
+        bindings.insert(
+            UiCmd::ToggleLineNums,
+            parse_bindings(&config.toggle_line_nums),
+        );
 
         KeyBindings { bindings }
     }

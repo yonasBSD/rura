@@ -29,6 +29,6 @@ expression: terminal.backend()
 "│alt+h        - Scroll left            │"
 "│                                      │"
 "│alt+w        - Wrap output lines      │"
-"│                                      │"
+"│alt+n        - Toggle line numbers    │"
 "│                  ▼                   │"
 "└──────────────────────────────────────┘"

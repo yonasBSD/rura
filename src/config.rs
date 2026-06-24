@@ -127,6 +127,7 @@ pub struct KeyBindingsConfig {
     pub toggle_live: Vec<String>,
     pub toggle_live_until_cursor: Vec<String>,
     pub toggle_presets: Vec<String>,
+    pub toggle_line_nums: Vec<String>,
 }
 
 impl Default for KeyBindingsConfig {
@@ -176,6 +177,7 @@ impl Default for KeyBindingsConfig {
             toggle_live_until_cursor: vec!["f11".into()],
             toggle_live: vec!["f12".into()],
             toggle_presets: vec!["alt+p".into()],
+            toggle_line_nums: vec!["alt+n".into()],
         }
     }
 }

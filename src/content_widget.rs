@@ -34,6 +34,7 @@ pub struct ContentWidget<T: ContentLine> {
     pub output_content_area_size: Cell<Size>,
     pub highlight_positions: Vec<(usize, Range<usize>)>,
     pub highlight_index: usize,
+    pub line_nums: bool,
 }
 
 impl<T: ContentLine> ContentWidget<T> {
@@ -46,6 +47,7 @@ impl<T: ContentLine> ContentWidget<T> {
             output_content_area_size: Cell::new(Size::default()),
             highlight_positions: vec![],
             highlight_index: 0,
+            line_nums: true,
         }
     }
 
@@ -224,6 +226,10 @@ impl<T: ContentLine> ContentWidget<T> {
         self.wrap = !self.wrap;
     }
 
+    pub fn toggle_line_nums(&mut self) {
+        self.line_nums = !self.line_nums;
+    }
+
     fn main_output_width(&self) -> usize {
         let mut max_len = 0;
         for line in &self.lines {
@@ -242,12 +248,16 @@ impl<T: ContentLine> ContentWidget<T> {
     }
 
     pub fn layout(&self, area: Rect) -> [Rect; 4] {
-        let line_nums_width = self.lines.len().to_string().len();
+        let line_nums_width: u16 = if self.line_nums {
+            self.lines.len().to_string().len() as u16 + 1
+        } else {
+            0
+        };
 
         let lines_content_scroll_layout = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(vec![
-                Constraint::Length((line_nums_width + 1) as u16),
+                Constraint::Length(line_nums_width),
                 Constraint::Fill(1),
                 Constraint::Length(1),
             ]);

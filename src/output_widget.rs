@@ -63,6 +63,7 @@ impl OutputWidget {
                 highlight_index: 0,
                 theme: Theme::from_config(theme_config),
                 output_content_area_size: Cell::new(Size::default()),
+                line_nums: true,
             },
             diff: ContentWidget {
                 offset: Position::default(),
@@ -72,6 +73,7 @@ impl OutputWidget {
                 highlight_index: 0,
                 theme: Theme::from_config(theme_config),
                 output_content_area_size: Cell::new(Size::default()),
+                line_nums: true,
             },
             error_output_opt: None,
             theme: Theme::from_config(theme_config),
@@ -294,6 +296,11 @@ impl OutputWidget {
             ContentMode::Normal => self.content.wrap = !self.content.wrap,
             ContentMode::Diff => self.diff.wrap = !self.diff.wrap,
         }
+    }
+
+    pub fn toggle_line_nums(&mut self) {
+        self.content.toggle_line_nums();
+        self.diff.toggle_line_nums();
     }
 
     pub fn layout(&self, area: Rect) -> [Rect; 2] {
