@@ -9,14 +9,15 @@
 - **Partial Pipeline Execution**: Execute only up to the current subcommand to debug complex pipes.
 - **Live Execution Modes**: Real-time feedback as you type, with optional "Live Until Cursor" or "Live Full" modes.
 - **Diff Mode**: Line-based diff between two outputs, with a selectable base (stdin or any subcommand's output).
+- **Presets**: Save frequently used commands as named presets with optional single-key shortcuts.
 - **Context-aware Completion**: Tab-complete commands and file paths using your system's bash, zsh, or fish tools.
 - **Command Caching**: Automatically caches output of subcommands to speed up iteration.
-- **Syntax & Error Highlighting**: Visual feedback for subcommand boundaries, quotes, and pipes, plus highlighting of failed subcommands.
 - **Customizable**: Fully configurable key bindings, themes, and UI placement via TOML.
 
 <details>
 <summary>More features</summary>
 
+- **Syntax & Error Highlighting**: Visual feedback for subcommand boundaries, quotes, and pipes, plus highlighting of failed subcommands.
 - **Custom Shell Support**: Specify which shell to use for command execution and completions (supports `sh`, `bash`, `zsh`, `fish` on Unix and `powershell` on Windows).
 - **Search**: Search and highlight text within the output pane with regex support.
 - **Command Formatting**: Automatically format your command pipeline.
@@ -25,6 +26,7 @@
 - **Persistent History**: Quickly access and reuse previous commands.
 - **Save to File**: Save current output or command to a file.
 - **Line Wrapping**: Toggle whether long output lines wrap to fit the view.
+- **Line Numbers**: Toggle line numbers in the output pane.
 
 </details>
 
@@ -146,6 +148,7 @@ rura --last
 | `PageUp / PageDown` <br> `Alt + Up / Down` <br> `Alt + Shift + j / k` <br> `Ctrl + u / d` | Scroll the output up/down by page. |
 | `Alt + Shift + h / l` | Scroll the output left/right by page. |
 | `Alt + w` | Toggle line wrapping. |
+| `Alt + n` | Toggle line numbers. |
 
 ### Search
 
@@ -154,6 +157,8 @@ rura --last
 | `F3 / F4` <br> `Ctrl + f / b` | Search forward or backward in the output. |
 | `Alt + x` | Toggle regex mode. |
 | `Alt + c` | Toggle case sensitivity. |
+| `Ctrl + p` | Previous search query in history. |
+| `Ctrl + n` | Next search query in history. |
 
 ### Live Execution Modes
 
@@ -185,6 +190,38 @@ rura --last
 | `Home / End` <br> `Ctrl + a / e` | Move cursor to the beginning or end of the command line. |
 | `Ctrl + p` | Previous command in history. |
 | `Ctrl + n` | Next command in history. |
+
+### Presets
+
+| Key | Action |
+| --- | --- |
+| `Alt + p` | Open/close the presets panel. |
+
+**In the presets panel (select mode):**
+
+| Key | Action |
+| --- | --- |
+| `Up / Down` | Navigate the preset list. |
+| `Enter` | Insert the selected preset after the current subcommand and close the panel. |
+| `Alt + Enter` | Insert the selected preset before the current subcommand and close the panel. |
+| `<shortcut>` | Insert the preset with that shortcut after the current subcommand and close the panel. |
+| `Shift + <shortcut>` | Insert the preset with that shortcut before the current subcommand and close the panel. |
+| `Ctrl + n` | Add a new empty preset. |
+| `Ctrl + t` | Add a new preset pre-filled with the current command. |
+| `Ctrl + e` | Edit the selected preset. |
+| `Ctrl + k` | Duplicate the selected preset. |
+| `Ctrl + d` | Delete the selected preset (asks for confirmation). |
+| `Ctrl + Up` | Move the selected preset up. |
+| `Ctrl + Down` | Move the selected preset down. |
+| `Esc` | Close the presets panel. |
+
+**When editing a preset:**
+
+| Key | Action |
+| --- | --- |
+| `Tab` | Switch focus between the command and shortcut fields. |
+| `Enter` | Save the preset. |
+| `Esc` | Cancel editing. |
 
 ### Saving to File
 
@@ -284,6 +321,18 @@ Rura maintains a persistent command history. The history file is located at:
 - **Linux**: `~/.local/share/rura/history.txt`
 - **macOS**: `~/Library/Application Support/rura/history.txt`
 - **Windows**: `%APPDATA%\rura\history.txt`
+
+### Search History
+Search queries are persisted across sessions. The search history file is located at:
+- **Linux**: `~/.local/share/rura/search_history.txt`
+- **macOS**: `~/Library/Application Support/rura/search_history.txt`
+- **Windows**: `%APPDATA%\rura\search_history.txt`
+
+### Presets
+Presets are saved commands stored in a TOML file:
+- **Linux**: `~/.local/share/rura/presets.toml`
+- **macOS**: `~/Library/Application Support/rura/presets.toml`
+- **Windows**: `%APPDATA%\rura\presets.toml`
 
 ### Logs
 Application logs are useful for troubleshooting. They are stored at:
