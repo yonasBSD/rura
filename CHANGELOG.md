@@ -1,3 +1,11 @@
+## v1.7.0 - 2026-06-25
+
+### Features
+
+- Added presets functionality
+- Added history support for search input
+- Added line numbers toggle functionality
+
 ## v1.6.0 - 2026-06-21
 
 ### Features
