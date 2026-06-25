@@ -101,7 +101,7 @@ impl RuraWidget {
             self.command_input.value(),
             self.command_input.visual_cursor(),
         ) {
-            if let Some(cursor) = r.cursor_prev(false) {
+            if let Some(cursor) = r.cursor_prev() {
                 self.command_input.handle(InputRequest::SetCursor(cursor));
             }
         }

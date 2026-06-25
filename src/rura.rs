@@ -84,7 +84,7 @@ impl Rura {
         }
     }
 
-    pub fn cursor_prev(&self, cycle: bool) -> Option<usize> {
+    pub fn cursor_prev(&self) -> Option<usize> {
         let mut sum = 0;
         let mut ends = Vec::new();
         for (i, subcommand) in self.subcommands.iter().enumerate() {
@@ -109,14 +109,10 @@ impl Rura {
 
         // If cursor <= ends[0], wrap to last
         if self.cursor <= ends[0] {
-            if cycle {
-                return Some(*ends.last().unwrap());
-            } else {
-                return Some(ends[0]);
-            }
+            Some(ends[0])
+        } else {
+            None
         }
-
-        None
     }
 
     pub fn cursor_next(&self, cycle: bool) -> Option<usize> {
@@ -585,47 +581,25 @@ mod tests {
     }
 
     #[test]
-    fn test_cursor_prev_cycle() {
-        let rura = Rura::new("aaa|bbbb|ccccc", 14).unwrap();
-        assert_eq!(rura.cursor_prev(true), Some(7));
-        let rura = Rura::new("aaa|bbbb|ccccc", 13).unwrap();
-        assert_eq!(rura.cursor_prev(true), Some(7));
-        let rura = Rura::new("aaa|bbbb|ccccc", 12).unwrap();
-        assert_eq!(rura.cursor_prev(true), Some(7));
-
-        let rura = Rura::new("aaa|bbbb|ccccc", 8).unwrap();
-        assert_eq!(rura.cursor_prev(true), Some(7));
-        let rura = Rura::new("aaa|bbbb|ccccc", 7).unwrap();
-        assert_eq!(rura.cursor_prev(true), Some(2));
-        let rura = Rura::new("aaa|bbbb|ccccc", 6).unwrap();
-        assert_eq!(rura.cursor_prev(true), Some(2));
-
-        let rura = Rura::new("aaa|bbbb|ccccc", 3).unwrap();
-        assert_eq!(rura.cursor_prev(true), Some(2));
-        let rura = Rura::new("aaa|bbbb|ccccc", 2).unwrap();
-        assert_eq!(rura.cursor_prev(true), Some(14));
-    }
-
-    #[test]
     fn test_cursor_prev_no_cycle() {
         let rura = Rura::new("aaa|bbbb|ccccc", 14).unwrap();
-        assert_eq!(rura.cursor_prev(false), Some(7));
+        assert_eq!(rura.cursor_prev(), Some(7));
         let rura = Rura::new("aaa|bbbb|ccccc", 13).unwrap();
-        assert_eq!(rura.cursor_prev(false), Some(7));
+        assert_eq!(rura.cursor_prev(), Some(7));
         let rura = Rura::new("aaa|bbbb|ccccc", 12).unwrap();
-        assert_eq!(rura.cursor_prev(false), Some(7));
+        assert_eq!(rura.cursor_prev(), Some(7));
 
         let rura = Rura::new("aaa|bbbb|ccccc", 8).unwrap();
-        assert_eq!(rura.cursor_prev(false), Some(7));
+        assert_eq!(rura.cursor_prev(), Some(7));
         let rura = Rura::new("aaa|bbbb|ccccc", 7).unwrap();
-        assert_eq!(rura.cursor_prev(false), Some(2));
+        assert_eq!(rura.cursor_prev(), Some(2));
         let rura = Rura::new("aaa|bbbb|ccccc", 6).unwrap();
-        assert_eq!(rura.cursor_prev(false), Some(2));
+        assert_eq!(rura.cursor_prev(), Some(2));
 
         let rura = Rura::new("aaa|bbbb|ccccc", 3).unwrap();
-        assert_eq!(rura.cursor_prev(false), Some(2));
+        assert_eq!(rura.cursor_prev(), Some(2));
         let rura = Rura::new("aaa|bbbb|ccccc", 2).unwrap();
-        assert_eq!(rura.cursor_prev(false), Some(2));
+        assert_eq!(rura.cursor_prev(), Some(2));
     }
 
     #[test]
