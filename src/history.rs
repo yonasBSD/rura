@@ -1,7 +1,7 @@
-use crate::config::history_path;
 use log::debug;
 use std::collections::VecDeque;
 use std::io::{Error, Write};
+use std::path::PathBuf;
 
 pub struct History {
     store: Box<dyn HistoryStore>,
@@ -14,23 +14,21 @@ trait HistoryStore {
     fn save(&mut self, item: &str) -> Result<(), Error>;
 }
 
-#[derive(Default)]
 struct FileHistoryStore {
     items: Option<VecDeque<String>>,
+    path: PathBuf,
 }
 
 impl HistoryStore for FileHistoryStore {
     fn load(&mut self) -> Result<&VecDeque<String>, Error> {
         let items_mut = self.items.get_or_insert_with(|| {
             let mut history = VecDeque::new();
-            if let Some(path) = history_path() {
-                debug!("initializing history from file: {:?}", path);
+            debug!("initializing history from file: {:?}", self.path);
 
-                if let Ok(content) = std::fs::read_to_string(path) {
-                    for line in content.lines() {
-                        if !line.is_empty() {
-                            history.push_front(line.to_string());
-                        }
+            if let Ok(content) = std::fs::read_to_string(self.path.clone()) {
+                for line in content.lines() {
+                    if !line.is_empty() {
+                        history.push_front(line.to_string());
                     }
                 }
             }
@@ -44,35 +42,31 @@ impl HistoryStore for FileHistoryStore {
             items_mut.push_front(value.into());
         });
 
-        if let Some(path) = history_path() {
-            if let Some(parent) = path.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-            if let Ok(mut file) = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(path)
-            {
-                let _ = writeln!(file, "{}", value);
-                Ok(())
-            } else {
-                Err(Error::new(
-                    std::io::ErrorKind::Other,
-                    "Failed to open history file for writing",
-                ))
-            }
+        if let Some(parent) = self.path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        if let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(self.path.clone())
+        {
+            let _ = writeln!(file, "{}", value);
+            Ok(())
         } else {
             Err(Error::new(
                 std::io::ErrorKind::Other,
-                "History path not found",
+                "Failed to open history file for writing",
             ))
         }
     }
 }
 
 impl History {
-    pub fn using_file() -> Self {
-        let store = Box::new(FileHistoryStore::default());
+    pub fn using_file(p: PathBuf) -> Self {
+        let store = Box::new(FileHistoryStore {
+            items: None,
+            path: p,
+        });
 
         History {
             position: None,
@@ -143,36 +137,36 @@ impl History {
     }
 }
 
+#[derive(Default)]
+struct InMemHistoryStore {
+    items: VecDeque<String>,
+}
+
+impl History {
+    pub fn in_mem() -> History {
+        History {
+            store: Box::new(InMemHistoryStore::default()),
+            position: None,
+            current: None,
+        }
+    }
+}
+
+impl HistoryStore for InMemHistoryStore {
+    fn load(&mut self) -> Result<&VecDeque<String>, Error> {
+        Ok(&self.items)
+    }
+
+    fn save(&mut self, value: &str) -> Result<(), Error> {
+        self.items.push_front(value.into());
+        println!("Saving history item: {}", value);
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[derive(Default)]
-    struct InMemHistoryStore {
-        items: VecDeque<String>,
-    }
-
-    impl History {
-        pub fn in_mem() -> History {
-            History {
-                store: Box::new(InMemHistoryStore::default()),
-                position: None,
-                current: None,
-            }
-        }
-    }
-
-    impl HistoryStore for InMemHistoryStore {
-        fn load(&mut self) -> Result<&VecDeque<String>, Error> {
-            Ok(&self.items)
-        }
-
-        fn save(&mut self, value: &str) -> Result<(), Error> {
-            self.items.push_front(value.into());
-            println!("Saving history item: {}", value);
-            Ok(())
-        }
-    }
 
     impl InMemHistoryStore {
         fn stub(items: VecDeque<String>) -> Self {

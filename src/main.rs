@@ -22,7 +22,7 @@ mod uicmd;
 
 use crate::app::App;
 use crate::args::Args;
-use crate::config::load_config;
+use crate::config::{history_path, load_config};
 use crate::history::History;
 use anyhow::Result;
 use clap::Parser;
@@ -56,8 +56,10 @@ fn main() {
     let args = Args::parse();
 
     if args.last {
-        println!("{}", History::using_file().previous(""));
-        exit(0)
+        if let Some(p) = history_path() {
+            println!("{}", History::using_file(p).previous(""));
+            exit(0)
+        }
     }
 
     let config = load_config(args.config.as_deref());

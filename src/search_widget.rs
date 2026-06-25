@@ -1,3 +1,4 @@
+use crate::history::History;
 use crossterm::event::Event;
 use itertools::Itertools;
 use ratatui::buffer::Buffer;
@@ -8,13 +9,13 @@ use ratatui::widgets::{Block, Paragraph};
 use tui_input::Input;
 use tui_input::backend::crossterm::EventHandler;
 
-#[derive(Default)]
 pub struct SearchWidget {
     pub input: Input,
     pub case_sensitive: bool,
     pub regex: bool,
-    current: usize,
-    total: usize,
+    pub current: usize,
+    pub total: usize,
+    pub history: History,
 }
 
 impl Widget for &SearchWidget {
@@ -53,6 +54,10 @@ impl SearchWidget {
             .unwrap_or(false)
     }
 
+    pub fn update_history(&mut self) {
+        self.history.push(self.input.value())
+    }
+
     pub fn toggle_case_sensitive(&mut self) {
         self.case_sensitive = !self.case_sensitive;
     }
@@ -73,5 +78,19 @@ impl SearchWidget {
     pub fn update_highlight_info(&mut self, info: (usize, usize)) {
         self.current = info.0;
         self.total = info.1;
+    }
+
+    pub fn history_next(&mut self) {
+        self.input = self
+            .input
+            .clone()
+            .with_value(self.history.next(self.input.value()));
+    }
+
+    pub fn history_prev(&mut self) {
+        self.input = self
+            .input
+            .clone()
+            .with_value(self.history.previous(self.input.value()));
     }
 }

@@ -3,7 +3,7 @@ use crate::app::Action::{
 };
 use crate::args::Args;
 use crate::completable_input::CompletableInput;
-use crate::config::Config;
+use crate::config::{Config, history_path, search_history_path};
 use crate::debouncer::debouncer_task;
 use crate::file_saver::{FileSaver, FileSavers};
 use crate::help_widget::HelpWidget;
@@ -43,6 +43,7 @@ use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::{Duration, SystemTime};
 use std::{env, thread};
+use tui_input::Input;
 use tui_popup::Popup;
 
 pub struct App {
@@ -162,7 +163,9 @@ impl App {
                 command_input: CompletableInput::from(&args.command.unwrap_or_default(), &shell),
                 highlight_until: None,
                 theme: Theme::from_config(&config.theme),
-                history: History::using_file(),
+                history: history_path()
+                    .map(|p| History::using_file(p))
+                    .unwrap_or(History::in_mem()),
                 highlight_reset_tx,
                 failed_subcommand: None,
                 diff_base_subcommand: None,
@@ -175,7 +178,16 @@ impl App {
                     CommandLinePlacement::Bottom => ErrorPanePlacement::Bottom,
                 },
             ),
-            search_widget: SearchWidget::default(),
+            search_widget: SearchWidget {
+                input: Input::default(),
+                case_sensitive: false,
+                regex: false,
+                current: 0,
+                total: 0,
+                history: search_history_path()
+                    .map(|p| History::using_file(p))
+                    .unwrap_or(History::in_mem()),
+            },
             save_output_widget: SaveToFileWidget::new(
                 " Save output to file ".to_string(),
                 shell.clone(),
@@ -512,6 +524,7 @@ impl App {
     fn handle_event_search(&mut self, event: &Event, code: KeyCode, mods: KeyModifiers) {
         match (code, mods) {
             (Esc, KeyModifiers::NONE) => {
+                self.search_widget.update_history();
                 self.active_mode = ActiveMode::Normal;
             }
             (F(1), KeyModifiers::NONE) => {
@@ -545,6 +558,7 @@ impl App {
                 );
                 self.search_widget
                     .update_highlight_info(self.output_widget.highlight_info());
+                self.search_widget.update_history();
             }
             _ => match to_ui_command(&self.key_bindings, code, mods) {
                 Some(ui_cmd) => match ui_cmd {
@@ -593,6 +607,12 @@ impl App {
                     }
                     UiCmd::SaveCommand => {
                         self.active_modal = ActiveModal::SaveCommand;
+                    }
+                    UiCmd::HistoryPrev => {
+                        self.search_widget.history_prev();
+                    }
+                    UiCmd::HistoryNext => {
+                        self.search_widget.history_next();
                     }
                     _ => {}
                 },
@@ -1160,7 +1180,14 @@ mod tests {
                     Theme::from_config(&theme_config),
                 ),
                 presets_widget: PresetsWidget::new(Theme::from_config(&theme_config)),
-                search_widget: SearchWidget::default(),
+                search_widget: SearchWidget {
+                    input: Input::default(),
+                    case_sensitive: false,
+                    regex: false,
+                    current: 0,
+                    total: 0,
+                    history: History::in_mem(),
+                },
                 action_rx,
                 command_tx,
                 debouncer_tx,
