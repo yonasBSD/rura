@@ -1018,13 +1018,10 @@ impl App {
     fn hints_widget(&self) -> Line<'_> {
         let mut spans: Vec<Span> = vec![];
 
-        spans.push(" ".into());
-        spans.push("^C".bold());
-        spans.push(" Quit ".into());
-        spans.push("Enter".bold());
-        spans.push(" Execute ".into());
         spans.push("F1".bold());
         spans.push(" Help ".into());
+        spans.push("Ctrl+C".bold());
+        spans.push(" Quit ".into());
 
         Line::from_iter(spans).centered().dim()
     }
