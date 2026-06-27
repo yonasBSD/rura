@@ -6,6 +6,7 @@ edition = "2024"
 description = "Interactive TUI pipeline editor built for rapid iteration"
 repository = "https://github.com/tlipinski/rura"
 homepage = "https://github.com/tlipinski/rura"
+authors = ["Tomasz Lipiński"]
 
 [dependencies]
 clap = { version = "4.6.1", features = ["derive"] }
